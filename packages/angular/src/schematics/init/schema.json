@@ -1,12 +1,12 @@
 {
   "$schema": "http://json-schema.org/schema",
-  "$id": "mf",
+  "$id": "nf",
   "title": "",
   "type": "object",
   "properties": {
     "project": {
       "type": "string",
-      "description": "The project to add module federation",
+      "description": "The project to add native-federation federation",
       "$default": {
         "$source": "argv",
         "index": 0

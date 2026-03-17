@@ -16,10 +16,6 @@ export interface NfBuilderSchema extends JsonObject {
   ssr: boolean;
   devServer?: boolean;
   chunks?: { enable: boolean; dense: true };
-  /**
-   * @deprecated: Use entryPoints instead
-   */
-  entryPoint?: string;
   entryPoints?: string[];
   cacheExternalArtifacts?: boolean;
 } // eslint-disable-line

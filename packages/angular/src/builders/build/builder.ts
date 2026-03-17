@@ -205,10 +205,10 @@ export async function* runBuilder(
     ? browserOutputPath
     : path.join(outputOptions.base, outputOptions.browser, localeFilter[0]!);
 
-  const entryPoints: string[] = nfBuilderOptions.entryPoints ?? [
-    nfBuilderOptions.entryPoint ??
-      path.join(path.dirname(ngBuilderOptions.tsConfig), 'src/main.ts'),
-  ];
+  const entryPoints: string[] | undefined =
+    nfBuilderOptions.entryPoints && nfBuilderOptions.entryPoints.length > 0
+      ? nfBuilderOptions.entryPoints
+      : undefined;
 
   const cachePath = getDefaultCachePath(context.workspaceRoot);
   const normalized = await normalizeFederationOptions(
