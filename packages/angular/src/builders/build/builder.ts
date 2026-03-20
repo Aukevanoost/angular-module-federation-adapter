@@ -40,7 +40,7 @@ import { existsSync, mkdirSync, rmSync } from 'fs';
 import { fstart } from '../../tools/fstart-as-data-url.js';
 import { type Plugin, type PluginBuild } from 'esbuild';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
-import { createSharedMappingsPlugin } from '../../utils/shared-mappings-plugin.js';
+// import { createSharedMappingsPlugin } from '../../utils/shared-mappings-plugin.js';
 import { updateScriptTags } from '../../utils/updateIndexHtml.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
 import { type NfBuilderSchema } from './schema.js';
@@ -213,6 +213,7 @@ export async function* runBuilder(
   const cachePath = getDefaultCachePath(context.workspaceRoot);
   const normalized = await normalizeFederationOptions(
     {
+      projectName: nfBuilderOptions.projectName,
       workspaceRoot: context.workspaceRoot,
       outputPath: browserOutputPath,
       federationConfig: inferConfigPath(ngBuilderOptions.tsConfig),
@@ -235,7 +236,6 @@ export async function* runBuilder(
 
   const externals = getExternals(normalized.config);
   const plugins = [
-    createSharedMappingsPlugin(normalized.config.sharedMappings),
     {
       name: 'externals',
       setup(build: PluginBuild) {

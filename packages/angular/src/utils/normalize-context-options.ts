@@ -6,7 +6,7 @@ import type {
   EntryPoint,
   NFBuildAdapterOptions,
 } from '@softarc/native-federation';
-import type { MappedPath } from '@softarc/native-federation/internal';
+import type { PathToImport } from '@softarc/native-federation/internal';
 
 export interface NormalizedContextOptions {
   builderOptions: ApplicationBuilderOptions;
@@ -15,7 +15,7 @@ export interface NormalizedContextOptions {
   external: string[];
   outdir: string;
   tsConfigPath?: string;
-  mappedPaths: MappedPath[];
+  mappedPaths: PathToImport;
   cache: FederationCache<SourceFileCache>;
   dev: boolean;
   isMappingOrExposed: boolean;

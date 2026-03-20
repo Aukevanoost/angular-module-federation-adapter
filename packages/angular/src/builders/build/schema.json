@@ -38,6 +38,9 @@
     "baseHref": {
       "type": "string"
     },
+    "projectName": {
+      "type": "string"
+    },
     "outputPath": {
       "type": "string"
     },
