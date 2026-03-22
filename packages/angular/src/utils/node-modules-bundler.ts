@@ -148,7 +148,7 @@ export async function createNodeModulesEsbuildContext(options: NormalizedContext
     logLimit: 1,
     plugins: [createAngularLinkerPlugin(jsTransformer, advancedOptimizations), commonjsPlugin()],
     define: {
-      ...(!dev ? { ngDevMode: 'false' } : {}),
+      ngDevMode: dev ? 'true' : 'false',
       ngJitMode: 'false',
     },
     ...(builderOptions.loader ? { loader: builderOptions.loader } : {}),

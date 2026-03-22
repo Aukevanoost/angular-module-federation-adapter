@@ -66,21 +66,6 @@
       "description": "Will cache the shared externals so they can be re-used between builds",
       "alias": "cache"
     },
-    "chunks": {
-      "type": "object",
-      "properties": {
-        "enable": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable chunking (code splitting)."
-        },
-        "dense": {
-          "type": "boolean",
-          "default": false,
-          "description": "Allows for a more compact remoteEntry.json."
-        }
-      }
-    },
     "buildNotifications": {
       "type": "object",
       "properties": {
