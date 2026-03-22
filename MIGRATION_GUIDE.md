@@ -133,7 +133,8 @@ export default withNativeFederation({
   skip: ['rxjs/ajax', 'rxjs/fetch', 'rxjs/testing', 'rxjs/webSocket'],
 
   features: {
-    ignoreUnusedDeps: true,
+    ignoreUnusedDeps: true, // Now enabled by default
+    denseChunking: true, // Opt-in: groups chunks in remoteEntry.json for smaller file size
   },
 });
 ```
@@ -166,7 +167,6 @@ In the new version we're moving to an opt-in setup where the user (you) can cust
             "target": "mfe1:serve-original:development",
             "cacheExternalArtifacts": true, // Cache and re-use external bundled artifacts that don't change (e.g. RxJs) across builds
             "rebuildDelay": 500, // Allows for a grace period between builds when you develop; within this period it can cancel previous builds to save time (500/1000 is good)
-            "chunks": { "enable": true, "dense": true }, // Enabling code splitting. The default is true, but dense mode is opt-in (so false by default).
             "dev": true,
             "port": 0
           }
@@ -177,7 +177,7 @@ In the new version we're moving to an opt-in setup where the user (you) can cust
 }
 ```
 
-Dense mode is something new in v4 that is experimental! Read more about it here: https://github.com/native-federation/native-federation-core/issues/5
+> **Note:** Code-splitting (`chunks`) and dense chunking (`denseChunking`) are now configured in `federation.config.js` instead of the angular.json builder options. See the [README](./README.md#code-splitting-for-shared-dependencies) for details.
 
 And that's it! Your micro frontend is migrated to the new major! We do have some optional improvements that can be nice:
 

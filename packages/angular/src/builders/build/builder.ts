@@ -221,7 +221,6 @@ export async function* runBuilder(
       verbose: ngBuilderOptions.verbose,
       watch: ngBuilderOptions.watch,
       dev: !!nfBuilderOptions.dev,
-      chunks: !nfBuilderOptions.chunks ? false : nfBuilderOptions.chunks,
       entryPoints,
       buildNotifications: nfBuilderOptions.buildNotifications,
       cacheExternalArtifacts: nfBuilderOptions.cacheExternalArtifacts !== false,

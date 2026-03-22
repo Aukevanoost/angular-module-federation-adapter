@@ -158,13 +158,9 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     format: 'esm',
     target: target,
     logLimit: 0,
-    plugins: [
-      compilerPlugin,
-      // ...(mappedPaths && Object.keys(mappedPaths).length > 0 ? [createSharedMappingsPlugin(mappedPaths)] : []),
-      commonjsPlugin(),
-    ],
+    plugins: [compilerPlugin, commonjsPlugin()],
     define: {
-      ...(!dev ? { ngDevMode: 'false' } : {}),
+      ngDevMode: dev ? 'true' : 'false',
       ngJitMode: 'false',
     },
     ...(builderOptions.loader ? { loader: builderOptions.loader } : {}),
