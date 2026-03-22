@@ -24,7 +24,7 @@ import {
 
 import * as path from 'path';
 
-const SSR_VERSION = '^4.0.0';
+const SSR_VERSION = '4.0.0-RC9';
 
 type NormalizedOptions = {
   polyfills: string;
@@ -144,7 +144,7 @@ export default function config(options: NfSchematicSchema): Rule {
     addPackageJsonDependency(tree, {
       name: '@softarc/native-federation-orchestrator',
       type: NodeDependencyType.Default,
-      version: '^4.0.0',
+      version: '4.0.0-RC4',
       overwrite: false,
     });
 
