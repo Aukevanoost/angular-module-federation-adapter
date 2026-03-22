@@ -57,6 +57,7 @@ function updateBuilderReferences(tree: Tree, workspace: any, workspaceFileName: 
   for (const projectName of Object.keys(workspace.projects ?? {})) {
     const project = workspace.projects[projectName];
     const architect = project?.architect ?? {};
+    const sourceRoot = (project?.sourceRoot ?? '').replace(/\\/g, '/');
 
     for (const targetName of Object.keys(architect)) {
       const target = architect[targetName];
@@ -64,6 +65,19 @@ function updateBuilderReferences(tree: Tree, workspace: any, workspaceFileName: 
         target.builder = V4_BUILDER;
         modified = true;
         console.log(`Updated builder for "${projectName}:${targetName}" to ${V4_BUILDER}`);
+      }
+
+      // Add entryPoints and projectName to NF builder targets if not already set
+      if (
+        (target?.builder === V3_BUILDER || target?.builder === V4_BUILDER) &&
+        !target?.options?.entryPoints
+      ) {
+        target.options ??= {};
+        target.options.entryPoints = [path.join(sourceRoot, 'main.ts')];
+        if (!target.options.projectName) {
+          target.options.projectName = projectName;
+        }
+        modified = true;
       }
     }
   }

@@ -211,7 +211,9 @@ function updateWorkspaceConfig(
   workspaceFileName: string,
   ssr: boolean
 ) {
-  const { projectConfig, projectName, port } = options;
+  const { projectConfig, projectName, port, main, projectSourceRoot } = options;
+
+  const entryPoints = main ? [main] : [path.join(projectSourceRoot, 'main.ts')];
 
   if (!projectConfig?.architect?.build || !projectConfig?.architect?.serve) {
     throw new Error(`The project doesn't have a build or serve target in angular.json!`);
@@ -244,6 +246,7 @@ function updateWorkspaceConfig(
     options: {
       projectName,
       cacheExternalArtifacts: true,
+      entryPoints,
     },
     configurations: {
       production: {
@@ -292,6 +295,7 @@ function updateWorkspaceConfig(
       dev: true,
       devServer: true,
       port: 0,
+      entryPoints,
     },
   };
 
