@@ -17,7 +17,6 @@ import {
   normalizeSourceMaps,
 } from '@angular-devkit/build-angular/src/utils/index.js';
 
-import { createSharedMappingsPlugin } from './shared-mappings-plugin.js';
 import { createAwaitableCompilerPlugin } from './create-awaitable-compiler-plugin.js';
 import type { NormalizedContextOptions } from './normalize-context-options.js';
 import { createFederationTsConfig } from './create-federation-tsconfig.js';
@@ -32,7 +31,6 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     entryPoints,
     external,
     outdir,
-    mappedPaths,
     cache,
     dev,
     hash,
@@ -162,7 +160,7 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     logLimit: 0,
     plugins: [
       compilerPlugin,
-      ...(mappedPaths && mappedPaths.length > 0 ? [createSharedMappingsPlugin(mappedPaths)] : []),
+      // ...(mappedPaths && Object.keys(mappedPaths).length > 0 ? [createSharedMappingsPlugin(mappedPaths)] : []),
       commonjsPlugin(),
     ],
     define: {

@@ -11,7 +11,6 @@ import {
 
 import { normalizeSourceMaps } from '@angular-devkit/build-angular/src/utils/index.js';
 
-import { createSharedMappingsPlugin } from './shared-mappings-plugin.js';
 import type { NormalizedContextOptions } from './normalize-context-options.js';
 
 const LINKER_DECLARATION_PREFIX = 'ɵɵngDeclare';
@@ -87,7 +86,6 @@ export async function createNodeModulesEsbuildContext(options: NormalizedContext
     entryPoints,
     external,
     outdir,
-    mappedPaths,
     cache,
     dev,
     hash,
@@ -148,11 +146,7 @@ export async function createNodeModulesEsbuildContext(options: NormalizedContext
     format: 'esm',
     target: target,
     logLimit: 1,
-    plugins: [
-      createAngularLinkerPlugin(jsTransformer, advancedOptimizations),
-      ...(mappedPaths && mappedPaths.length > 0 ? [createSharedMappingsPlugin(mappedPaths)] : []),
-      commonjsPlugin(),
-    ],
+    plugins: [createAngularLinkerPlugin(jsTransformer, advancedOptimizations), commonjsPlugin()],
     define: {
       ...(!dev ? { ngDevMode: 'false' } : {}),
       ngJitMode: 'false',
