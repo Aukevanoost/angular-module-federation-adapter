@@ -208,9 +208,10 @@ export async function* runBuilder(
   const entryPoints: string[] | undefined =
     nfBuilderOptions.entryPoints && nfBuilderOptions.entryPoints.length > 0
       ? nfBuilderOptions.entryPoints
-      : undefined;
+      : [path.join(path.dirname(ngBuilderOptions.tsConfig), 'src/main.ts')];
 
   const cachePath = getDefaultCachePath(context.workspaceRoot);
+
   const normalized = await normalizeFederationOptions(
     {
       projectName: nfBuilderOptions.projectName,
@@ -314,9 +315,7 @@ export async function* runBuilder(
 
   let federationResult: FederationInfo;
   try {
-    const start = process.hrtime();
     federationResult = await buildForFederation(normalized.config, normalized.options, externals);
-    logger.measure(start, 'To build the artifacts.');
   } catch (e) {
     logger.error((e as Error)?.message ?? 'Building the artifacts failed');
     process.exit(1);
@@ -397,8 +396,6 @@ export async function* runBuilder(
               throw new AbortedError('[builder] Before federation build.');
             }
 
-            const start = process.hrtime();
-
             // Todo: Invalidate all source files, Angular doesn't provide a way to give the invalidated files yet.
             // ref: https://github.com/angular/angular-cli/pull/32527
             const keys = [...normalized.options.federationCache.bundlerCache.keys()].filter(
@@ -435,7 +432,6 @@ export async function* runBuilder(
             if (isLocalDevelopment) {
               federationBuildNotifier.broadcastBuildCompletion();
             }
-            logger.measure(start, 'To rebuild the federation artifacts.');
             return { success: true };
           } catch (error) {
             if (error instanceof AbortedError) {
