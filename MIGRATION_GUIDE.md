@@ -42,11 +42,11 @@ The first step is to update the `package.json` to install the new packages:
   "private": true,
   "dependencies": {
     // [...] Dependencies
-    "@softarc/native-federation-runtime": "4.0.0-RC8" // Lock the version to the v4 RC8
+    "@softarc/native-federation-runtime": "4.0.0-RC9" // Lock the version to the v4 RC9
   },
   "devDependencies": {
-    "@angular-architects/native-federation-v4": "^21.1.4", // Switch over to the (temporary) v4 package
-    "@softarc/native-federation": "4.0.0-RC8", // Lock the version to the v4 RC8
+    "@angular-architects/native-federation-v4": "^21.1.9", // Switch over to the (temporary) v4 package
+    "@softarc/native-federation": "4.0.0-RC9", // Lock the version to the v4 RC9
     "@softarc/native-federation-orchestrator": "4.0.0-RC4" // Lock the version to the v4 RC4
   }
 }
@@ -73,7 +73,7 @@ module.exports = withNativeFederation({
   shared: {
     ...shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' }),
 
-    // This example is only for setups that have a share after the shareAll as you can see here.
+    // OLD: This example is only for setups that currently have a share after the shareAll.
     ...share({ "@angular/core": { singleton: true, strictVersion: true, requiredVersion: 'auto' }});
   },
 
@@ -95,7 +95,8 @@ module.exports = withNativeFederation({
 
 ```javascript
 // Our well-known ESM importing types
-import { withNativeFederation, shareAll } from '@softarc/native-federation/config';
+// As you can see, USE THE ANGULAR ONES, NOT THE DEFAULT ONES
+import { withNativeFederation, shareAll } from '@angular-architects/native-federation-v4/config';
 
 // change this line to the default export.
 export default withNativeFederation({
