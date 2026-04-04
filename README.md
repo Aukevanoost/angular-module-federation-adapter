@@ -525,6 +525,21 @@ The already prepared packages are cached in `node_modules/.cache`. Make sure, th
 
 We use Import Maps at runtime. In addition to Import Maps, we use some code at build time and at runtime to provide the Mental Model of Module Federation.
 
+### How to integrate custom esbuild plugins in Native Federation v4 build process?
+
+Configure `customBuilder` in your `angular.json`.
+
+```json
+"architect": {
+  "serve": {
+    "builder": "./path:customBuilder",
+    "options": {
+      ...
+    }
+  }
+}
+```
+
 ## Documentation 📰
 
 Please have a look at this [article series](https://www.angulararchitects.io/en/aktuelles/the-microfrontend-revolution-part-2-module-federation-with-angular/).

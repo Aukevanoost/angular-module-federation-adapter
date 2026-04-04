@@ -66,24 +66,6 @@
       "description": "Will cache the shared externals so they can be re-used between builds",
       "alias": "cache"
     },
-    "internalOptions": {
-      "type": "object",
-      "description": "Internal build options for custom extensions",
-      "properties": {
-        "plugins": {
-          "type": "array",
-          "description": "esbuild plugins: string paths (ESM modules with default export)",
-          "items": {
-            "oneOf": [
-              {
-                "type": "string",
-                "description": "Path to ESM plugin module (e.g., './tools/plugin-dotenv.js')"
-              }
-            ]
-          }
-        }
-      }
-    },
     "buildNotifications": {
       "type": "object",
       "properties": {

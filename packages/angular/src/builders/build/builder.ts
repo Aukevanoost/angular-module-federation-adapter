@@ -3,7 +3,6 @@ import './setup-builder-env-variables.js';
 import * as fs from 'fs';
 import * as mrmime from 'mrmime';
 import * as path from 'path';
-import * as url from 'url';
 
 import { type ApplicationBuilderOptions, buildApplication } from '@angular/build';
 import { buildApplicationInternal, serveWithVite, SourceFileCache } from '@angular/build/private';
@@ -18,33 +17,33 @@ import {
 import { normalizeOptions } from '@angular-devkit/build-angular/src/builders/dev-server/options.js';
 import type { Schema as DevServerSchema } from '@angular-devkit/build-angular/src/builders/dev-server/schema.js';
 
-import { type JsonObject } from '@angular-devkit/core';
 import {
+  buildForFederation,
+  rebuildForFederation,
   type FederationInfo,
   type NormalizedFederationOptions,
-  buildForFederation,
-  createFederationCache,
   getExternals,
   normalizeFederationOptions,
-  rebuildForFederation,
   setBuildAdapter,
+  createFederationCache,
 } from '@softarc/native-federation';
 import {
+  logger,
+  setLogLevel,
+  RebuildQueue,
   AbortedError,
   getDefaultCachePath,
-  logger,
-  RebuildQueue,
-  setLogLevel,
 } from '@softarc/native-federation/internal';
-import { type Plugin, type PluginBuild } from 'esbuild';
+import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
+import { type JsonObject } from '@angular-devkit/core';
 import { existsSync, mkdirSync, rmSync } from 'fs';
 import { fstart } from '../../tools/fstart-as-data-url.js';
-import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
+import { type Plugin, type PluginBuild } from 'esbuild';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
 // import { createSharedMappingsPlugin } from '../../utils/shared-mappings-plugin.js';
 import { updateScriptTags } from '../../utils/updateIndexHtml.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
-import { type NfBuilderSchema } from './schema.js';
+import type { NfBuilderSchema, NfInternalOptions } from './schema.js';
 
 const originalWrite = process.stderr.write.bind(process.stderr);
 
@@ -88,7 +87,7 @@ const createInternalAngularBuilder =
   };
 
 export async function* runBuilder(
-  nfBuilderOptions: NfBuilderSchema,
+  nfBuilderOptions: NfBuilderSchema & NfInternalOptions,
   context: BuilderContext
 ): AsyncIterable<BuilderOutput> {
   let target = targetFromTargetString(nfBuilderOptions.target);
@@ -236,7 +235,7 @@ export async function* runBuilder(
   logger.measure(start, 'To load the federation config.');
 
   const externals = getExternals(normalized.config);
-  const federationPlugins = [
+  const plugins = [
     {
       name: 'externals',
       setup(build: PluginBuild) {
@@ -245,35 +244,9 @@ export async function* runBuilder(
         }
       },
     },
+    // Inject custom esbuild plugins
+    ...(Array.isArray(nfBuilderOptions.plugins) ? nfBuilderOptions.plugins : []),
   ];
-
-  // Inject custom esbuild plugins
-  const customPlugins = [];
-  const pluginPaths = nfBuilderOptions.internalOptions?.plugins;
-  if (pluginPaths && Array.isArray(pluginPaths)) {
-      for (const pluginPath of pluginPaths) {
-          let plugin;
-          if (typeof pluginPath === 'string') {
-              const resolvedPath = path.resolve(context.workspaceRoot, pluginPath);
-              const fileUrl = url.pathToFileURL(resolvedPath).href;
-              try {
-                  const module = await import(fileUrl);
-                  plugin = typeof module.default === 'function' ? module.default() : module.default;
-              } catch (e) {
-                  throw new Error(`Failed to load plugin from ${pluginPath}: ${(e as Error)?.message}`);
-              }
-          } else {
-              throw new Error(`Invalid plugin format at ${pluginPath}. Expected string path or plugin object.`);
-          }
-
-          if (plugin) {
-              customPlugins.push(plugin);
-          }
-      }
-  }
-
-  // Concat the esbuild plugins
-  const plugins = [...federationPlugins, ...customPlugins];
 
   // SSR build fails when externals are provided via the plugin
   if (activateSsr) {

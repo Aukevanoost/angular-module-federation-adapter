@@ -447,19 +447,14 @@ We use Import Maps at runtime. In addition to Import Maps, we use some code at b
 
 ### How to integrate custom esbuild plugins in Native Federation v4 build process?
 
-Configure `internalOptions.plugins` in your `angular.json`.
+Configure `customBuilder` in your `angular.json`.
 
 ```json
 "architect": {
   "serve": {
-    "builder": "@angular-architects/native-federation-v4:build",
+    "builder": "./path:customBuilder",
     "options": {
       ...
-      "internalOptions": {
-        "plugins": [
-          "./path/eg-plugin-dotenv-esbuild.js"
-        ]
-      }
     }
   }
 }
