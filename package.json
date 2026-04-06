@@ -23,13 +23,13 @@
     "@vitest/browser": "^4.0.0",
     "@vitest/coverage-v8": "^4.0.0",
     "@vitest/ui": "^4.0.0",
-    "esbuild": "^0.27.0",
+    "esbuild": "^0.28.0",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^17.0.0",
     "jiti": "^2.6.1",
-    "jsdom": "^28.0.0",
+    "jsdom": "^29.0.0",
     "msw": "^2.12.3",
     "nx": "~22.6.0",
     "prettier": "^3.6.2",
@@ -45,9 +45,9 @@
   ],
   "pnpm": {
     "overrides": {
-      "minimatch": "^7.4.8",
-      "flatted": "^3.4.2",
-      "undici": "^7.24.0"
+      "axios": "~1.13.6",
+      "minimatch": ">=7.4.7",
+      "lodash": ">4.17.23"
     }
   },
   "dependencies": {
@@ -59,7 +59,7 @@
     "@babel/core": "^7.28.5",
     "@chialab/esbuild-plugin-commonjs": "^0.19.0",
     "@schematics/angular": "^21.2.0",
-    "@softarc/native-federation": "4.0.0-RC9",
+    "@softarc/native-federation": "4.0.0-RC10",
     "@types/babel__core": "^7.20.5",
     "chalk": "^5.6.2",
     "fast-glob": "^3.3.3",

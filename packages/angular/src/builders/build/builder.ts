@@ -44,7 +44,7 @@ import { updateScriptTags } from '../../utils/updateIndexHtml.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
 import { createNfWatcher, syncNfWatcher, type NfWatcher } from './nf-watcher.js';
 import type { NfBuilderSchema, NfInternalOptions } from './schema.js';
-import { checkForInvalidImports } from 'src/utils/check-for-invalid-imports.js';
+import { checkForInvalidImports } from './../../utils/check-for-invalid-imports.js';
 
 const originalWrite = process.stderr.write.bind(process.stderr);
 

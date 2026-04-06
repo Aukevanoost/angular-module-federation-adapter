@@ -1,6 +1,6 @@
 {
   "name": "@angular-architects/native-federation-v4",
-  "version": "21.1.9",
+  "version": "21.1.10",
   "generators": "./collection.json",
   "builders": "./builders.json",
   "schematics": "./collection.json",
@@ -10,16 +10,16 @@
     "url": "http://www.angulararchitects.io"
   },
   "peerDependencies": {
-    "@softarc/native-federation": "^4.0.0-RC9",
-    "@softarc/native-federation-runtime": "^4.0.0-RC9",
+    "@softarc/native-federation": "^4.0.0-RC10",
+    "@softarc/native-federation-runtime": "^4.0.0-RC10",
     "@angular-devkit/architect": ">=0.2102.0",
     "@angular-devkit/build-angular": ">=21.2.0",
     "@angular-devkit/core": ">=21.2.0",
     "@angular/build": ">=21.2.0"
   },
   "dependencies": {
-    "@softarc/native-federation": "4.0.0-RC9",
-    "@softarc/native-federation-runtime": "4.0.0-RC9",
+    "@softarc/native-federation": "4.0.0-RC10",
+    "@softarc/native-federation-runtime": "4.0.0-RC10",
     "@angular-devkit/architect": "^0.2102.0",
     "@angular-devkit/build-angular": "^21.2.0",
     "@angular-devkit/core": "^21.2.0",
@@ -29,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/native-federation/angular"
+    "url": "https://github.com/native-federation/angular-adapter"
   },
   "ng-update": {
     "migrations": "./migration-collection.json"
@@ -47,7 +47,7 @@
       "default": "./src/config.js"
     }
   },
-  "homepage": "https://github.com/native-federation/angular",
+  "homepage": "https://github.com/native-federation/angular-adapter",
   "type": "module",
   "files": [
     "src",
