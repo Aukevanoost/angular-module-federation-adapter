@@ -40,11 +40,10 @@ import { existsSync, mkdirSync, rmSync } from 'fs';
 import { fstart } from '../../tools/fstart-as-data-url.js';
 import { type Plugin, type PluginBuild } from 'esbuild';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
-// import { createSharedMappingsPlugin } from '../../utils/shared-mappings-plugin.js';
 import { updateScriptTags } from '../../utils/updateIndexHtml.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
 import { createNfWatcher, syncNfWatcher, type NfWatcher } from './nf-watcher.js';
-import { type NfBuilderSchema } from './schema.js';
+import type { NfBuilderSchema, NfInternalOptions } from './schema.js';
 
 const originalWrite = process.stderr.write.bind(process.stderr);
 
@@ -88,7 +87,7 @@ const createInternalAngularBuilder =
   };
 
 export async function* runBuilder(
-  nfBuilderOptions: NfBuilderSchema,
+  nfBuilderOptions: NfBuilderSchema & NfInternalOptions,
   context: BuilderContext
 ): AsyncIterable<BuilderOutput> {
   let target = targetFromTargetString(nfBuilderOptions.target);
@@ -245,6 +244,8 @@ export async function* runBuilder(
         }
       },
     },
+    // Inject custom esbuild plugins
+    ...(Array.isArray(nfBuilderOptions.plugins) ? nfBuilderOptions.plugins : []),
   ];
 
   // SSR build fails when externals are provided via the plugin
@@ -306,9 +307,8 @@ export async function* runBuilder(
 
   let first = true;
 
-  const nfWatcher: NfWatcher | undefined = (nfBuilderOptions.dev || watch)
-    ? createNfWatcher()
-    : undefined;
+  const nfWatcher: NfWatcher | undefined =
+    nfBuilderOptions.dev || watch ? createNfWatcher() : undefined;
 
   if (nfWatcher) {
     nfWatcher.add(path.dirname(path.resolve(context.workspaceRoot, ngBuilderOptions.tsConfig)));
