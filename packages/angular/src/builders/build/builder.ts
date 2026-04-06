@@ -44,6 +44,7 @@ import { updateScriptTags } from '../../utils/updateIndexHtml.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
 import { createNfWatcher, syncNfWatcher, type NfWatcher } from './nf-watcher.js';
 import type { NfBuilderSchema, NfInternalOptions } from './schema.js';
+import { checkForInvalidImports } from 'src/utils/check-for-invalid-imports.js';
 
 const originalWrite = process.stderr.write.bind(process.stderr);
 
@@ -228,6 +229,9 @@ export async function* runBuilder(
     },
     createFederationCache(cachePath, new SourceFileCache(cachePath))
   );
+
+  checkForInvalidImports(Object.values(normalized.config.sharedMappings), 'shared mappings');
+  checkForInvalidImports(Object.keys(normalized.config.shared), 'externals');
 
   const activateSsr = nfBuilderOptions.ssr && !nfBuilderOptions.dev;
 
