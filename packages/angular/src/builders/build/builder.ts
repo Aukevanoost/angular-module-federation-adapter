@@ -43,6 +43,7 @@ import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js
 // import { createSharedMappingsPlugin } from '../../utils/shared-mappings-plugin.js';
 import { updateScriptTags } from '../../utils/updateIndexHtml.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
+import { createNfWatcher, syncNfWatcher, type NfWatcher } from './nf-watcher.js';
 import { type NfBuilderSchema } from './schema.js';
 
 const originalWrite = process.stderr.write.bind(process.stderr);
@@ -305,6 +306,14 @@ export async function* runBuilder(
 
   let first = true;
 
+  const nfWatcher: NfWatcher | undefined = (nfBuilderOptions.dev || watch)
+    ? createNfWatcher()
+    : undefined;
+
+  if (nfWatcher) {
+    nfWatcher.add(path.dirname(path.resolve(context.workspaceRoot, ngBuilderOptions.tsConfig)));
+  }
+
   if (existsSync(normalized.options.outputPath)) {
     rmSync(normalized.options.outputPath, { recursive: true });
   }
@@ -319,6 +328,10 @@ export async function* runBuilder(
   } catch (e) {
     logger.error((e as Error)?.message ?? 'Building the artifacts failed');
     process.exit(1);
+  }
+
+  if (nfWatcher) {
+    syncNfWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
   }
 
   if (activateSsr) {
@@ -396,19 +409,23 @@ export async function* runBuilder(
               throw new AbortedError('[builder] Before federation build.');
             }
 
-            // Todo: Invalidate all source files, Angular doesn't provide a way to give the invalidated files yet.
-            // ref: https://github.com/angular/angular-cli/pull/32527
-            const keys = [...normalized.options.federationCache.bundlerCache.keys()].filter(
-              k => !k.includes('node_modules')
-            );
+            // Invalidate only files that changed since the last rebuild, falling back to all
+            // source files when the buffer is empty (e.g. first watch rebuild).
+            const pendingFiles = nfWatcher ? [...nfWatcher.pendingChanges] : [];
+
+            if (nfWatcher) nfWatcher.pendingChanges.clear();
 
             federationResult = await rebuildForFederation(
               normalized.config,
               normalized.options,
               externals,
-              keys,
+              pendingFiles,
               signal
             );
+
+            if (nfWatcher) {
+              syncNfWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
+            }
 
             if (signal?.aborted) {
               throw new AbortedError('[builder] After federation build.');
@@ -464,6 +481,7 @@ export async function* runBuilder(
   } finally {
     rebuildQueue.dispose();
     await adapter.dispose();
+    await nfWatcher?.close();
 
     if (isLocalDevelopment) {
       federationBuildNotifier.stopEventServer();
