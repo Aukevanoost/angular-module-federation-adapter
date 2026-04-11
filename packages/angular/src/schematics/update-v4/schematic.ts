@@ -49,7 +49,7 @@ function enableEsmInPackageJson(tree: Tree): void {
 
 /**
  * Step 2: Update all builder references in angular.json / workspace.json
- * from @angular-architects/native-federation:build to @angular-architects/native-federation-v4:build
+ * from @angular-architects/native-federation-v4:build to @angular-architects/native-federation-v4:build
  */
 function updateBuilderReferences(tree: Tree, workspace: any, workspaceFileName: string): void {
   let modified = false;

@@ -81,7 +81,10 @@ export function normalizeOptions(
   }
 
   const main =
-    projectConfig.architect.build.options.main || projectConfig.architect.build.options.browser;
+    projectConfig.architect.build.options.main ||
+    projectConfig.architect.build.options.browser ||
+    projectConfig.architect.esbuild.options.main || // fallback, if esbuild is already set
+    projectConfig.architect.esbuild.options.browser;
 
   if (!projectConfig.architect.build.options.polyfills) {
     projectConfig.architect.build.options.polyfills = [];

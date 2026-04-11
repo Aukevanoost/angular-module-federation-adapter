@@ -1,16 +1,15 @@
-import { apply, mergeWith, move, template, url } from '@angular-devkit/schematics';
+import { apply, mergeWith, move, type Source, template } from '@angular-devkit/schematics';
 import type { NfSchematicSchema } from '../schema.js';
 
-export async function generateFederationConfig(
+export function generateFederationConfig(
+  templateSource: Source,
   remoteMap: Record<string, string>,
   projectRoot: string,
   projectSourceRoot: string,
   appComponentPath: string,
   options: NfSchematicSchema
 ) {
-  const tmpl = url('../files');
-
-  const applied = apply(tmpl, [
+  const applied = apply(templateSource, [
     template({
       projectRoot,
       projectSourceRoot,

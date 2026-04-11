@@ -6,7 +6,7 @@ import {
   NodeDependencyType,
 } from '@schematics/angular/utility/dependencies';
 
-const SSR_VERSION = '4.0.0-RC10';
+const SSR_VERSION = '4.0.0-RC9';
 
 export function addDependencies(tree: Tree, context: SchematicContext, ssr: boolean): void {
   addPackageJsonDependency(tree, {

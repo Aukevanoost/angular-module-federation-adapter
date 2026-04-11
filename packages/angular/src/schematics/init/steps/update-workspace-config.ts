@@ -22,7 +22,7 @@ export function updateWorkspaceConfig(
     projectConfig.architect.build.builder === '@angular-architects/native-federation-v4:build'
   ) {
     console.log('native-federation builder is already set, skipping workspace setup.');
-    return tree;
+    return;
   }
 
   const originalBuild = projectConfig.architect.build;
@@ -92,7 +92,7 @@ export function updateWorkspaceConfig(
   projectConfig.architect['serve-original'] = projectConfig.architect.serve;
 
   projectConfig.architect.serve = {
-    builder: '@angular-architects/native-federation:build',
+    builder: '@angular-architects/native-federation-v4:build',
     options: {
       projectName,
       target: `${projectName}:serve-original:development`,

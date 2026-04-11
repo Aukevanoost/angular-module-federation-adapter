@@ -1,4 +1,4 @@
-import { chain, noop, type Rule } from '@angular-devkit/schematics';
+import { chain, noop, type Rule, url } from '@angular-devkit/schematics';
 import type { NfSchematicSchema } from './schema.js';
 import * as path from 'path';
 
@@ -54,7 +54,8 @@ export default function config(options: NfSchematicSchema): Rule {
     const appComponent = tree.exists(cand1) ? cand1 : tree.exists(cand2) ? cand2 : 'update-this.ts';
 
     const generateRule = !exists
-      ? await generateFederationConfig(
+      ? generateFederationConfig(
+          url('./files'),
           remoteMap,
           projectRoot,
           projectSourceRoot,
