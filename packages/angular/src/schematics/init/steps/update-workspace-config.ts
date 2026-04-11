@@ -9,9 +9,10 @@ export function updateWorkspaceConfig(
   workspaceFileName: string,
   ssr: boolean
 ) {
-  const { projectConfig, projectName, port, main, projectSourceRoot } = options;
+  const { projectConfig, projectName, projectRoot, port, main, projectSourceRoot } = options;
 
   const entryPoints = main ? [main] : [path.join(projectSourceRoot, 'main.ts')];
+  const tsConfig = path.join(projectRoot, 'tsconfig.federation.json').replace(/\\/g, '/');
 
   if (!projectConfig?.architect?.build || !projectConfig?.architect?.serve) {
     throw new Error(`The project doesn't have a build or serve target in angular.json!`);
@@ -51,6 +52,7 @@ export function updateWorkspaceConfig(
     builder: '@angular-architects/native-federation-v4:build',
     options: {
       projectName,
+      tsConfig,
       cacheExternalArtifacts: true,
       entryPoints,
     },
@@ -95,6 +97,7 @@ export function updateWorkspaceConfig(
     builder: '@angular-architects/native-federation-v4:build',
     options: {
       projectName,
+      tsConfig,
       target: `${projectName}:serve-original:development`,
       rebuildDelay: 500,
       cacheExternalArtifacts: true,
