@@ -19,7 +19,7 @@ import {
 
 import { createAwaitableCompilerPlugin } from './create-awaitable-compiler-plugin.js';
 import type { NormalizedContextOptions } from './normalize-context-options.js';
-import { createFederationTsConfig } from './create-federation-tsconfig.js';
+import { updateFederationTsConfig } from './create-federation-tsconfig.js';
 
 export async function createAngularEsbuildContext(options: NormalizedContextOptions): Promise<{
   ctx: esbuild.BuildContext;
@@ -81,12 +81,11 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     }
   }
 
-  tsConfigPath = createFederationTsConfig(
-    workspaceRoot,
-    tsConfigPath,
-    entryPoints,
-    optimizedMappings
-  );
+  if (optimizedMappings) {
+    updateFederationTsConfig(workspaceRoot, tsConfigPath, entryPoints);
+  }
+
+  tsConfigPath = path.join(workspaceRoot, tsConfigPath);
 
   const pluginOptions: CompilerPluginOptions = {
     sourcemap: !!sourcemapOptions.scripts && (sourcemapOptions.hidden ? 'external' : true),
