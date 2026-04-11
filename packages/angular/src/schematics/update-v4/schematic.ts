@@ -180,7 +180,7 @@ function installOrchestratorPackage(tree: Tree): void {
   }
 
   if (!packageJson.dependencies[ORCHESTRATOR_PACKAGE]) {
-    packageJson.dependencies[ORCHESTRATOR_PACKAGE] = '^4.0.0-RC4';
+    packageJson.dependencies[ORCHESTRATOR_PACKAGE] = '^4.0.0';
     tree.overwrite('package.json', JSON.stringify(packageJson, null, 2));
     console.log(`Added ${ORCHESTRATOR_PACKAGE} to dependencies`);
   }

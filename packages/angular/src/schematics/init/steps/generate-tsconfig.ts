@@ -1,11 +1,7 @@
 import type { Tree } from '@angular-devkit/schematics';
 import * as path from 'path';
 
-export function generateTsConfig(
-  tree: Tree,
-  projectRoot: string,
-  main: string
-): void {
+export function generateTsConfig(tree: Tree, projectRoot: string, main: string): void {
   const tsconfigPath = path.join(projectRoot, 'tsconfig.federation.json').replace(/\\/g, '/');
 
   if (tree.exists(tsconfigPath)) {

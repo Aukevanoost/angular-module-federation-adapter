@@ -2,7 +2,11 @@ import type { Rule, Tree } from '@angular-devkit/schematics';
 import type { NfSchematicSchema } from '../schema.js';
 import * as path from 'path';
 
-export function makeServerAsync(server: string, options: NfSchematicSchema, remoteMap: unknown): Rule {
+export function makeServerAsync(
+  server: string,
+  options: NfSchematicSchema,
+  remoteMap: unknown
+): Rule {
   return async function (tree: Tree) {
     const mainPath = path.dirname(server);
     const bootstrapName = path.join(mainPath, 'bootstrap-server.ts');

@@ -17,7 +17,11 @@ const ORCHESTRATOR_OPTIONS = `{
   logLevel: 'debug',
 }`;
 
-function getFederationArg(options: NfSchematicSchema, remoteMap: unknown, manifestRelPath: string): string {
+function getFederationArg(
+  options: NfSchematicSchema,
+  remoteMap: unknown,
+  manifestRelPath: string
+): string {
   switch (options.type) {
     case 'dynamic-host':
       return `'${manifestRelPath}'`;
@@ -48,12 +52,15 @@ export function makeMainAsync(
 
     const federationArg = getFederationArg(options, remoteMap, manifestRelPath);
 
-    tree.overwrite(main, `${ORCHESTRATOR_IMPORTS}
+    tree.overwrite(
+      main,
+      `${ORCHESTRATOR_IMPORTS}
 
 initFederation(${federationArg}, ${ORCHESTRATOR_OPTIONS})
   .catch(err => console.error(err))
   .then(_ => import('./bootstrap'))
   .catch(err => console.error(err));
-`);
+`
+    );
   };
 }

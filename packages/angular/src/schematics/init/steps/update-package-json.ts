@@ -1,5 +1,8 @@
 import type { Tree } from '@angular-devkit/schematics';
-import { patchAngularBuildPackageJson, privateEntrySrc } from '../../../utils/patch-angular-build.js';
+import {
+  patchAngularBuildPackageJson,
+  privateEntrySrc,
+} from '../../../utils/patch-angular-build.js';
 import type { PackageJson } from './normalize-options.js';
 
 export function updatePackageJson(tree: Tree): void {
