@@ -11,7 +11,7 @@ import {
 } from '@angular-devkit/schematics';
 
 import { strings } from '@angular-devkit/core';
-import { NodePackageInstallTask } from '@angular-devkit/schematics/tasks';
+import { NodePackageInstallTask } from '@angular-devkit/schematics/tasks/index.js';
 import type { NfSchematicSchema } from './schema.js';
 
 import { patchAngularBuildPackageJson, privateEntrySrc } from '../../utils/patch-angular-build.js';
@@ -121,13 +121,6 @@ export default function config(options: NfSchematicSchema): Rule {
     updateWorkspaceConfig(tree, normalized, workspace, workspaceFileName, ssr);
 
     addPackageJsonDependency(tree, {
-      name: '@angular/animations',
-      type: NodeDependencyType.Default,
-      version: getPackageJsonDependency(tree, '@angular/core')?.version || 'latest',
-      overwrite: false,
-    });
-
-    addPackageJsonDependency(tree, {
       name: '@angular-devkit/build-angular',
       type: NodeDependencyType.Dev,
       version: getPackageJsonDependency(tree, '@angular/build')?.version || 'latest',
@@ -137,14 +130,14 @@ export default function config(options: NfSchematicSchema): Rule {
     addPackageJsonDependency(tree, {
       name: 'es-module-shims',
       type: NodeDependencyType.Default,
-      version: '^1.5.12',
+      version: '^2.8.0',
       overwrite: false,
     });
 
     addPackageJsonDependency(tree, {
       name: '@softarc/native-federation-orchestrator',
-      type: NodeDependencyType.Default,
-      version: '4.0.0-RC4',
+      type: NodeDependencyType.Dev,
+      version: '^4.0.0',
       overwrite: false,
     });
 
