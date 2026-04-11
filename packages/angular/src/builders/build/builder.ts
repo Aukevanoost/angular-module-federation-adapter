@@ -173,7 +173,10 @@ export async function* runBuilder(
     ngBuilderOptions.outputPath = nfBuilderOptions.outputPath;
   }
 
-  const federationTsConfig = nfBuilderOptions.tsConfig || ngBuilderOptions.tsConfig;
+  const federationTsConfig =
+    !!nfBuilderOptions.tsConfig && nfBuilderOptions.tsConfig.length > 0
+      ? nfBuilderOptions.tsConfig
+      : ngBuilderOptions.tsConfig;
 
   const adapter = createAngularBuildAdapter(ngBuilderOptions, context);
 
