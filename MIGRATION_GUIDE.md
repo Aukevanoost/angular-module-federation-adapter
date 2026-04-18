@@ -42,12 +42,12 @@ The first step is to update the `package.json` to install the new packages:
   "private": true,
   "dependencies": {
     // [...] Dependencies
-    "@softarc/native-federation-runtime": "4.0.0-RC10" // Lock the version to the v4 RC9
+    "@softarc/native-federation-runtime": "~4.0.0"
   },
   "devDependencies": {
     "@angular-architects/native-federation-v4": "21.1.12", // Switch over to the (temporary) v4 package
-    "@softarc/native-federation": "4.0.0-RC10", // Lock the version to the v4 RC9
-    "@softarc/native-federation-orchestrator": "^4.0.0" // Set the version to the v4
+    "@softarc/native-federation": "~4.0.0",
+    "@softarc/native-federation-orchestrator": "^4.0.0"
   }
 }
 ```

@@ -33,6 +33,9 @@ import {
   RebuildQueue,
   AbortedError,
   getDefaultCachePath,
+  type NfFileWatcher,
+  syncNfFileWatcher,
+  createNfWatcher,
 } from '@softarc/native-federation/internal';
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
 import { type JsonObject } from '@angular-devkit/core';
@@ -40,9 +43,8 @@ import { existsSync, mkdirSync, rmSync } from 'fs';
 import { fstart } from '../../tools/fstart-as-data-url.js';
 import { type Plugin, type PluginBuild } from 'esbuild';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
-import { updateScriptTags } from '../../utils/updateIndexHtml.js';
+import { updateScriptTags } from '../../utils/update-index-html.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
-import { createNfWatcher, syncNfWatcher, type NfWatcher } from './nf-watcher.js';
 import type { NfBuilderSchema, NfInternalOptions } from './schema.js';
 import { checkForInvalidImports } from './../../utils/check-for-invalid-imports.js';
 
@@ -322,11 +324,11 @@ export async function* runBuilder(
 
   let first = true;
 
-  const nfWatcher: NfWatcher | undefined =
+  const nfWatcher: NfFileWatcher | undefined =
     nfBuilderOptions.dev || watch ? createNfWatcher() : undefined;
 
   if (nfWatcher) {
-    nfWatcher.add(path.dirname(path.resolve(context.workspaceRoot, federationTsConfig)));
+    nfWatcher.addPaths(path.dirname(path.resolve(context.workspaceRoot, federationTsConfig)));
   }
 
   if (existsSync(normalized.options.outputPath)) {
@@ -346,7 +348,7 @@ export async function* runBuilder(
   }
 
   if (nfWatcher) {
-    syncNfWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
+    syncNfFileWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
   }
 
   if (activateSsr) {
@@ -426,9 +428,9 @@ export async function* runBuilder(
 
             // Invalidate only files that changed since the last rebuild, falling back to all
             // source files when the buffer is empty (e.g. first watch rebuild).
-            const pendingFiles = nfWatcher ? [...nfWatcher.pendingChanges] : [];
+            const pendingFiles = nfWatcher ? [...nfWatcher.get()] : [];
 
-            if (nfWatcher) nfWatcher.pendingChanges.clear();
+            if (nfWatcher) nfWatcher.clear();
 
             federationResult = await rebuildForFederation(
               normalized.config,
@@ -439,7 +441,7 @@ export async function* runBuilder(
             );
 
             if (nfWatcher) {
-              syncNfWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
+              syncNfFileWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
             }
 
             if (signal?.aborted) {
