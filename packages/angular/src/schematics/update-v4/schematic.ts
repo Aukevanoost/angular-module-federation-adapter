@@ -19,7 +19,6 @@ export default function updateV4(options: UpdateV4Schema): Rule {
     const workspaceFileName = getWorkspaceFileName(tree);
     const workspace = JSON.parse(tree.read(workspaceFileName)?.toString('utf8') ?? '{}');
 
-    enableEsmInPackageJson(tree);
     updateBuilderReferences(tree, workspace, workspaceFileName);
     migrateFederationConfigs(tree, workspace, options);
     migrateMainTs(tree, workspace, options);
@@ -30,21 +29,6 @@ export default function updateV4(options: UpdateV4Schema): Rule {
       context.addTask(new NodePackageInstallTask());
     }
   };
-}
-
-/**
- * Step 1: Add "type": "module" to the root package.json
- */
-function enableEsmInPackageJson(tree: Tree): void {
-  const packageJson = JSON.parse(tree.read('package.json')?.toString('utf8') ?? '{}');
-
-  if (packageJson.type === 'module') {
-    return;
-  }
-
-  packageJson.type = 'module';
-  tree.overwrite('package.json', JSON.stringify(packageJson, null, 2));
-  console.log('Updated package.json: added "type": "module"');
 }
 
 /**

@@ -2,6 +2,13 @@
 
 The goal of this small guide is to show the major differences between Native federation v3 and v4. This guide is only for people who want to mess around with the **beta** release, and it expects a (monorepo) setup that contains 1 or multiple Angular micro frontends.
 
+> [!TIP]
+> Prefer to let the tooling do the work? You can run the `update-v4` schematic to apply most of these changes automatically:
+>
+> ```bash
+> ng g @angular-architects/native-federation-v4:update-v4
+> ```
+
 The migration involves changing 4 files:
 
 ```
@@ -10,7 +17,7 @@ The migration involves changing 4 files:
 ├── 📄 angular.json                     // Switching to the v4 builder
 └── 📁 projects/
     └── 📁 <your-project>/
-        ├── 📄 federation.config.js     // Renamed to federation.config.mjs & switched from commonJS to ESM
+        ├── 📄 federation.config.mjs    // Renamed to federation.config.mjs & switch from commonJS to ESM
         └── 📁 src/
             └── 📄 main.ts              // optionally: switching to the orchestrator
 ```
@@ -35,14 +42,14 @@ The first step is to update the `package.json` to install the new packages:
 {
   "name": "mfe-test",
   "version": "1.2.3",
-  "type": "module", //  <-- Very important! we're fully ESM now!
+  "type": "module", //  <-- Optional, NF is fully ESM now.
   "scripts": {
     "ng": "ng"
   },
   "private": true,
   "dependencies": {
     // [...] Dependencies
-    "@softarc/native-federation-runtime": "~4.0.0"
+    "@softarc/native-federation-runtime": "~4.0.0" // optional, if you want to keep using the classic runtime
   },
   "devDependencies": {
     "@angular-architects/native-federation-v4": "21.1.12", // Switch over to the (temporary) v4 package
@@ -94,8 +101,7 @@ module.exports = withNativeFederation({
 **After:**
 
 ```javascript
-// Our well-known ESM importing types
-// As you can see, USE THE ANGULAR ONES, NOT THE DEFAULT ONES
+// Our well-known ESM importing types, but now imported from @angular-architects/native-federation-v4
 import { withNativeFederation, shareAll } from '@angular-architects/native-federation-v4/config';
 
 // change this line to the default export.
@@ -115,12 +121,6 @@ export default withNativeFederation({
       {
         overrides: {
           '@angular/core': {
-            singleton: true,
-            strictVersion: true,
-            requiredVersion: 'auto',
-            includeSecondaries: { keepAll: true },
-          },
-          '@angular/common': {
             singleton: true,
             strictVersion: true,
             requiredVersion: 'auto',
