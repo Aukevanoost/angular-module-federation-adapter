@@ -5,6 +5,11 @@
       "implementation": "./src/builders/build/builder",
       "schema": "./src/builders/build/schema.json",
       "description": "native federation builder"
+    },
+    "build-slim": {
+      "implementation": "./src/builders/build-slim/builder",
+      "schema": "./src/builders/build-slim/schema.json",
+      "description": "native federation builder without the Angular application build (federation artifacts + minimal Vite server only)"
     }
   }
 }
