@@ -1,10 +1,8 @@
 import '../build/setup-builder-env-variables.js';
 
-import * as fs from 'fs';
 import * as path from 'path';
-import * as mrmime from 'mrmime';
+import { existsSync, mkdirSync, rmSync } from 'fs';
 
-import { type ApplicationBuilderOptions } from '@angular/build';
 import { SourceFileCache } from '@angular/build/private';
 
 import { type BuilderContext, type BuilderOutput, createBuilder } from '@angular-devkit/architect';
@@ -23,16 +21,26 @@ import {
   RebuildQueue,
   AbortedError,
   getDefaultCachePath,
-  type NfFileWatcher,
   syncNfFileWatcher,
-  createNfWatcher,
 } from '@softarc/native-federation/internal';
+
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
-import { existsSync, mkdirSync, rmSync } from 'fs';
 import { federationBuildNotifier } from '../build/federation-build-notifier.js';
-import type { NfSlimBuilderSchema, NfSlimIndexOption, NfSlimInternalOptions } from './schema.js';
 import { checkForInvalidImports } from '../../utils/check-for-invalid-imports.js';
-import { createServer as createViteServer, type InlineConfig, type ViteDevServer } from 'vite';
+
+import type { NfSlimBuilderSchema, NfSlimInternalOptions } from './schema.js';
+import { resolveNgBuilderOptions } from './resolve-ng-options.js';
+import { inferFederationConfigPath } from './infer-config-path.js';
+import { writeSlimIndexHtml } from './index-html.js';
+import { createStaticFileMiddleware } from './static-middleware.js';
+import { createDebouncedChangeWatcher } from './change-watcher.js';
+import { createSlimViteServer } from './vite-server.js';
+import {
+  copyAllAssets,
+  copyChangedAssets,
+  getAssetWatchDirs,
+  normalizeSlimAssetEntries,
+} from './assets.js';
 
 export async function* runSlimBuilder(
   nfBuilderOptions: NfSlimBuilderSchema & NfSlimInternalOptions,
@@ -40,25 +48,26 @@ export async function* runSlimBuilder(
 ): AsyncIterable<BuilderOutput> {
   const federationTsConfig = nfBuilderOptions.tsConfig;
   const outputBase = nfBuilderOptions.outputPath ?? `dist/${context.target!.project}`;
+  const browserOutputPath = path.join(outputBase, 'browser');
+  const absoluteBrowserOutput = path.resolve(context.workspaceRoot, browserOutputPath);
 
-  const ngBuilderOptions: ApplicationBuilderOptions = {
-    tsConfig: federationTsConfig,
-    outputPath: outputBase,
-  } as ApplicationBuilderOptions;
+  const { ngBuilderOptions, projectRoot, projectSourceRoot } = await resolveNgBuilderOptions(
+    nfBuilderOptions,
+    context,
+    outputBase,
+    federationTsConfig
+  );
 
   const adapter = createAngularBuildAdapter(ngBuilderOptions, context);
-
   setBuildAdapter(adapter);
-
   setLogLevel(nfBuilderOptions.verbose ? 'verbose' : 'info');
 
-  const browserOutputPath = path.join(outputBase, 'browser');
-  const devServerOutputPath = browserOutputPath;
-
-  const entryPoints: string[] | undefined =
-    nfBuilderOptions.entryPoints && nfBuilderOptions.entryPoints.length > 0
-      ? nfBuilderOptions.entryPoints
-      : [path.join(path.dirname(federationTsConfig), 'src/main.ts')];
+  // Unlike the regular build builder, slim never bundles a main.ts / polyfills.
+  // Entry points come from the schema override or, when omitted, from the
+  // `exposes` map in federation.config.{mjs,js} (resolved by normalizeFederationOptions).
+  const entryPoints: string[] | undefined = nfBuilderOptions.entryPoints?.length
+    ? nfBuilderOptions.entryPoints
+    : undefined;
 
   const cachePath = getDefaultCachePath(context.workspaceRoot);
 
@@ -67,7 +76,7 @@ export async function* runSlimBuilder(
       projectName: nfBuilderOptions.projectName,
       workspaceRoot: context.workspaceRoot,
       outputPath: browserOutputPath,
-      federationConfig: inferConfigPath(federationTsConfig, context.workspaceRoot),
+      federationConfig: inferFederationConfigPath(federationTsConfig, context.workspaceRoot),
       tsConfig: federationTsConfig,
       verbose: nfBuilderOptions.verbose,
       watch: nfBuilderOptions.watch,
@@ -87,7 +96,7 @@ export async function* runSlimBuilder(
 
   const externals = getExternals(normalized.config);
 
-  const isLocalDevelopment = nfBuilderOptions.watch && nfBuilderOptions.dev;
+  const isLocalDevelopment = !!nfBuilderOptions.watch && !!nfBuilderOptions.dev;
 
   if (isLocalDevelopment && nfBuilderOptions.buildNotifications?.enable) {
     federationBuildNotifier.initialize(nfBuilderOptions.buildNotifications.endpoint);
@@ -97,78 +106,33 @@ export async function* runSlimBuilder(
     ...(isLocalDevelopment
       ? [federationBuildNotifier.createEventMiddleware(req => req.url ?? '')]
       : []),
-
-    (
-      req: { url?: string },
-      res: {
-        writeHead: (status: number, headers: Record<string, string>) => void;
-        end: (body: string) => void;
-      },
-      next: () => void
-    ) => {
-      const url = req.url ?? '';
-      const isRoot = url === '/' || url === '';
-      const relPath = isRoot ? 'index.html' : url;
-      const fileName = path.join(normalized.options.workspaceRoot, devServerOutputPath, relPath);
-
-      if (fs.existsSync(fileName) && fs.statSync(fileName).isFile()) {
-        const lookup = mrmime.lookup;
-        const mimeType = lookup(path.extname(fileName)) || 'text/javascript';
-        const rawBody = fs.readFileSync(fileName, 'utf-8');
-
-        res.writeHead(200, {
-          'Content-Type': mimeType,
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        });
-        res.end(rawBody);
-      } else {
-        next();
-      }
-    },
+    createStaticFileMiddleware(absoluteBrowserOutput),
   ];
 
-  const pendingPaths = new Set<string>();
-  let notifyChange: () => void = () => {};
-  let changePromise: Promise<void> = new Promise<void>(r => (notifyChange = r));
-  const resetChangePromise = () => {
-    changePromise = new Promise<void>(r => (notifyChange = r));
-  };
+  const assetEntries = normalizeSlimAssetEntries(
+    nfBuilderOptions.assets,
+    context.workspaceRoot,
+    projectRoot,
+    projectSourceRoot
+  );
 
-  // Debounce at the source: fs.watch fires multiple events per save (write+rename,
-  // directory + per-file watchers overlapping). Only wake the rebuild loop after
-  // `rebuildDelay` ms of quiescence so a burst collapses into one cycle.
-  const debounceMs = Math.max(10, nfBuilderOptions.rebuildDelay);
-  let debounceTimer: NodeJS.Timeout | undefined;
-  const scheduleNotify = () => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      debounceTimer = undefined;
-      notifyChange();
-    }, debounceMs);
-  };
-
-  const nfWatcher: NfFileWatcher | undefined = nfBuilderOptions.watch
-    ? createNfWatcher({
-        onChange: p => {
-          pendingPaths.add(p);
-          scheduleNotify();
-        },
-      })
+  const changeWatcher = nfBuilderOptions.watch
+    ? createDebouncedChangeWatcher(nfBuilderOptions.rebuildDelay)
     : undefined;
 
-  if (nfWatcher) {
-    nfWatcher.addPaths(path.dirname(path.resolve(context.workspaceRoot, federationTsConfig)));
+  if (changeWatcher) {
+    changeWatcher.watcher.addPaths(
+      path.dirname(path.resolve(context.workspaceRoot, federationTsConfig))
+    );
+    for (const assetDir of getAssetWatchDirs(assetEntries, context.workspaceRoot)) {
+      changeWatcher.watcher.addPaths(assetDir);
+    }
   }
 
   if (existsSync(normalized.options.outputPath)) {
     rmSync(normalized.options.outputPath, { recursive: true });
   }
-
-  if (!existsSync(normalized.options.outputPath)) {
-    mkdirSync(normalized.options.outputPath, { recursive: true });
-  }
+  mkdirSync(normalized.options.outputPath, { recursive: true });
 
   try {
     await buildForFederation(normalized.config, normalized.options, externals);
@@ -177,65 +141,36 @@ export async function* runSlimBuilder(
     process.exit(1);
   }
 
-  if (nfWatcher) {
-    syncNfFileWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
+  await copyAllAssets(assetEntries, absoluteBrowserOutput, context.workspaceRoot);
+
+  if (changeWatcher) {
+    syncNfFileWatcher(changeWatcher.watcher, normalized.options.federationCache.bundlerCache);
   }
 
-  writeSlimIndexHtml(
-    path.resolve(context.workspaceRoot, devServerOutputPath),
-    context.workspaceRoot,
-    nfBuilderOptions.index
-  );
+  writeSlimIndexHtml(absoluteBrowserOutput, context.workspaceRoot, nfBuilderOptions.index);
 
   const rebuildQueue = new RebuildQueue();
 
-  let viteServer: ViteDevServer | undefined;
-  if (nfBuilderOptions.watch) {
-    const viteConfig: InlineConfig = {
-      configFile: false,
-      envFile: false,
-      appType: 'custom',
-      root: path.resolve(context.workspaceRoot, devServerOutputPath),
-      publicDir: false,
-      mode: 'development',
-      server: {
-        port: nfBuilderOptions.port || undefined,
-        strictPort: !!nfBuilderOptions.port,
-        cors: { origin: true, preflightContinue: true },
-        middlewareMode: false,
-        preTransformRequests: false,
-        watch: null,
-      },
-      plugins: [
-        {
-          name: 'nf-slim-middleware',
-          configureServer(server) {
-            for (const mw of middleware) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              server.middlewares.use(mw as any);
-            }
-          },
-        },
-      ],
-    };
-
-    viteServer = await createViteServer(viteConfig);
-    await viteServer.listen();
-    viteServer.printUrls?.();
-  }
+  const viteServer = nfBuilderOptions.watch
+    ? await createSlimViteServer({
+        root: absoluteBrowserOutput,
+        port: nfBuilderOptions.port,
+        middleware,
+      })
+    : undefined;
 
   try {
     yield { success: true };
 
-    while (nfBuilderOptions.watch) {
-      await changePromise;
-      resetChangePromise();
+    while (nfBuilderOptions.watch && changeWatcher) {
+      await changeWatcher.waitForChange();
+      changeWatcher.resetChangePromise();
 
       // fs.watch fires multiple events per save (write+rename, plus overlapping
       // directory and per-file watchers). Redundant events arriving during a
       // rebuild resolve the next promise, so without this guard the loop runs a
       // second phantom build with an empty snapshot once the first one finishes.
-      if (pendingPaths.size === 0) continue;
+      if (changeWatcher.pendingPaths.size === 0) continue;
 
       const trackResult = await rebuildQueue.track(async (signal: AbortSignal) => {
         try {
@@ -245,7 +180,7 @@ export async function* runSlimBuilder(
 
           // Snapshot but don't clear — if the build is aborted or fails,
           // the paths stay in pendingPaths and are retried on the next cycle.
-          const changedFiles = [...pendingPaths];
+          const changedFiles = [...changeWatcher.pendingPaths];
 
           await rebuildForFederation(
             normalized.config,
@@ -255,13 +190,18 @@ export async function* runSlimBuilder(
             signal
           );
 
+          await copyChangedAssets(
+            assetEntries,
+            absoluteBrowserOutput,
+            context.workspaceRoot,
+            changedFiles
+          );
+
           // Clear only what we consumed. Any paths pushed during the build
           // remain in pendingPaths and will drive the next iteration.
-          for (const p of changedFiles) pendingPaths.delete(p);
+          for (const p of changedFiles) changeWatcher.pendingPaths.delete(p);
 
-          if (nfWatcher) {
-            syncNfFileWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
-          }
+          syncNfFileWatcher(changeWatcher.watcher, normalized.options.federationCache.bundlerCache);
 
           if (signal?.aborted) {
             throw new AbortedError('[slim-builder] After federation build.');
@@ -293,68 +233,16 @@ export async function* runSlimBuilder(
       }
     }
   } finally {
-    if (debounceTimer) clearTimeout(debounceTimer);
+    changeWatcher?.dispose();
     rebuildQueue.dispose();
     await adapter.dispose();
-    await nfWatcher?.close();
+    await changeWatcher?.watcher.close();
     await viteServer?.close();
 
     if (isLocalDevelopment) {
       federationBuildNotifier.stopEventServer();
     }
   }
-}
-
-function writeSlimIndexHtml(
-  outputDir: string,
-  workspaceRoot: string,
-  index: NfSlimIndexOption | undefined
-): void {
-  if (index === false) return;
-
-  if (index !== undefined) {
-    const input = typeof index === 'string' ? index : index.input;
-    const outputName = typeof index === 'object' && index.output ? index.output : 'index.html';
-
-    const resolvedInput = path.resolve(workspaceRoot, input);
-    if (!fs.existsSync(resolvedInput)) {
-      throw new Error(`[slim-builder] Configured index file not found: ${resolvedInput}`);
-    }
-
-    const destination = path.join(outputDir, outputName);
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.copyFileSync(resolvedInput, destination);
-    return;
-  }
-
-  const indexPath = path.join(outputDir, 'index.html');
-  if (fs.existsSync(indexPath)) return;
-
-  const html = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Native Federation Remote</title>
-</head>
-<body>
-  <p>This is a Native Federation remote. Load it through a host application.</p>
-</body>
-</html>
-`;
-
-  fs.mkdirSync(outputDir, { recursive: true });
-  fs.writeFileSync(indexPath, html, 'utf-8');
-}
-
-function inferConfigPath(tsConfig: string, workspaceRoot: string): string {
-  const relProjectPath = path.dirname(tsConfig);
-  const mjsRelPath = path.join(relProjectPath, 'federation.config.mjs');
-
-  if (fs.existsSync(path.resolve(workspaceRoot, mjsRelPath))) {
-    return mjsRelPath;
-  }
-
-  return path.join(relProjectPath, 'federation.config.js');
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

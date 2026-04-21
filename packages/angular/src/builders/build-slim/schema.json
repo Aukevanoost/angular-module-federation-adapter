@@ -90,6 +90,74 @@
           "description": "You can override the default endpoint to send build completion events to."
         }
       }
+    },
+    "assets": {
+      "type": "array",
+      "description": "Assets to copy into the output directory. Same shape as @angular/build:application 'assets'.",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "properties": {
+              "glob": { "type": "string" },
+              "input": { "type": "string" },
+              "output": { "type": "string" },
+              "ignore": { "type": "array", "items": { "type": "string" } },
+              "followSymlinks": { "type": "boolean" }
+            },
+            "required": ["glob", "input"]
+          }
+        ]
+      }
+    },
+    "stylePreprocessorOptions": {
+      "type": "object",
+      "description": "Options passed to style preprocessors (e.g. Sass includePaths).",
+      "properties": {
+        "includePaths": { "type": "array", "items": { "type": "string" } },
+        "sass": { "type": "object" }
+      }
+    },
+    "inlineStyleLanguage": {
+      "type": "string",
+      "description": "Preprocessor language for inline component styles.",
+      "enum": ["css", "less", "sass", "scss"]
+    },
+    "fileReplacements": {
+      "type": "array",
+      "description": "Replace files listed in the build at compile time.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "replace": { "type": "string" },
+          "with": { "type": "string" }
+        },
+        "required": ["replace", "with"]
+      }
+    },
+    "sourceMap": {
+      "description": "Enable or configure source maps.",
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "properties": {
+            "scripts": { "type": "boolean" },
+            "styles": { "type": "boolean" },
+            "hidden": { "type": "boolean" },
+            "vendor": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "optimization": {
+      "description": "Enable or configure optimizations.",
+      "oneOf": [{ "type": "boolean" }, { "type": "object" }]
+    },
+    "preserveSymlinks": {
+      "type": "boolean",
+      "description": "Do not use the real path when resolving modules."
     }
   },
   "required": ["tsConfig"]
