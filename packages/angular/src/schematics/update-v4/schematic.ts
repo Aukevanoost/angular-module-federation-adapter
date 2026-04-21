@@ -88,16 +88,18 @@ function updateBuilderReferences(tree: Tree, workspace: any, workspaceFileName: 
 }
 
 /**
- * Step 3: Migrate federation.config.js files from CJS to ESM
+ * Step 3: Migrate federation.config.js files from CJS to ESM and rename to .mjs
  * - require() → import
  * - module.exports = → export default
  * - Update package references from v3 to v4
+ * - Rename federation.config.js → federation.config.mjs
  */
 function migrateFederationConfigs(tree: Tree, workspace: any, options: UpdateV4Schema): void {
   const projects = resolveProjects(workspace, options);
 
   for (const { projectRoot } of projects) {
     const configPath = path.join(projectRoot, 'federation.config.js');
+    const mjsConfigPath = path.join(projectRoot, 'federation.config.mjs');
     if (!tree.exists(configPath)) {
       continue;
     }
@@ -132,8 +134,9 @@ function migrateFederationConfigs(tree: Tree, workspace: any, options: UpdateV4S
     content = content.replace(new RegExp(escapeRegExp(V3_PACKAGE) + '(?!/)', 'g'), V4_PACKAGE);
 
     if (content !== originalContent) {
-      tree.overwrite(configPath, content);
-      console.log(`Migrated ${configPath} to ESM`);
+      tree.delete(configPath);
+      tree.create(mjsConfigPath, content);
+      console.log(`Migrated ${configPath} to ESM (renamed to ${mjsConfigPath})`);
     }
   }
 }

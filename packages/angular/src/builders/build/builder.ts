@@ -231,7 +231,7 @@ export async function* runBuilder(
       projectName: nfBuilderOptions.projectName,
       workspaceRoot: context.workspaceRoot,
       outputPath: browserOutputPath,
-      federationConfig: inferConfigPath(federationTsConfig),
+      federationConfig: inferConfigPath(federationTsConfig, context.workspaceRoot),
       tsConfig: federationTsConfig,
       verbose: ngBuilderOptions.verbose,
       watch: ngBuilderOptions.watch,
@@ -538,11 +538,15 @@ function getLocaleFilter(options: ApplicationBuilderOptions, runServer: boolean)
   return localize;
 }
 
-function inferConfigPath(tsConfig: string): string {
+function inferConfigPath(tsConfig: string, workspaceRoot: string): string {
   const relProjectPath = path.dirname(tsConfig);
-  const relConfigPath = path.join(relProjectPath, 'federation.config.js');
+  const mjsRelPath = path.join(relProjectPath, 'federation.config.mjs');
 
-  return relConfigPath;
+  if (fs.existsSync(path.resolve(workspaceRoot, mjsRelPath))) {
+    return mjsRelPath;
+  }
+
+  return path.join(relProjectPath, 'federation.config.js');
 }
 
 function transformIndexHtml(nfOptions: NfBuilderSchema): (content: string) => Promise<string> {

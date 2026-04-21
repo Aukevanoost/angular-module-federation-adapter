@@ -10,7 +10,7 @@ The migration involves changing 4 files:
 ├── 📄 angular.json                     // Switching to the v4 builder
 └── 📁 projects/
     └── 📁 <your-project>/
-        ├── 📄 federation.config.json   // Switching from commonJS to ESM
+        ├── 📄 federation.config.js     // Renamed to federation.config.mjs & switched from commonJS to ESM
         └── 📁 src/
             └── 📄 main.ts              // optionally: switching to the orchestrator
 ```
@@ -54,7 +54,7 @@ The first step is to update the `package.json` to install the new packages:
 
 ## 2. Updating the federation.config.js
 
-The `federation.config.js` contains all native-federation related configuration. You don't really need to change it, except for the format. It used to be CommonJS and has been changed to ESM as well for consistency:
+The `federation.config.js` contains all native-federation related configuration. The `update-v4` schematic renames it to `federation.config.mjs` and switches it from CommonJS to ESM for consistency. The builder still falls back to `federation.config.js` if no `.mjs` file is present.
 
 **Before:**
 
@@ -178,7 +178,7 @@ In the new version we're moving to an opt-in setup where the user (you) can cust
 }
 ```
 
-> **Note:** Code-splitting (`chunks`) and dense chunking (`denseChunking`) are now configured in `federation.config.js` instead of the angular.json builder options. See the [README](./README.md#code-splitting-for-shared-dependencies) for details.
+> **Note:** Code-splitting (`chunks`) and dense chunking (`denseChunking`) are now configured in `federation.config.mjs` instead of the angular.json builder options. See the [README](./README.md#code-splitting-for-shared-dependencies) for details.
 
 And that's it! Your micro frontend is migrated to the new major! We do have some optional improvements that can be nice:
 
