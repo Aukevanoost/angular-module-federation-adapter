@@ -42,7 +42,7 @@ The first step is to update the `package.json` to install the new packages:
 {
   "name": "mfe-test",
   "version": "1.2.3",
-  "type": "module", //  <-- Optional, NF is fully ESM now.
+  "type": "module", //  <-- (Optional) NF is fully ESM now.
   "scripts": {
     "ng": "ng"
   },
@@ -52,7 +52,7 @@ The first step is to update the `package.json` to install the new packages:
     "@softarc/native-federation-runtime": "~4.0.0" // optional, if you want to keep using the classic runtime
   },
   "devDependencies": {
-    "@angular-architects/native-federation-v4": "21.1.12", // Switch over to the (temporary) v4 package
+    "@angular-architects/native-federation-v4": "21.1.13", // Switch over to the (temporary) v4 package
     "@softarc/native-federation": "~4.0.0",
     "@softarc/native-federation-orchestrator": "^4.0.0"
   }
