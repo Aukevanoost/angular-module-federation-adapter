@@ -127,6 +127,15 @@ async function resolveRemoteNameFromEntry(remoteEntry: string): Promise<string> 
  *
  * @throws on bad arg combos, unresolvable `remoteName`, or load failure when
  *   no truthy `fallback` is set.
+ *
+ * @deprecated Prefer the `loadRemoteModule` returned by the `initFederation`
+ *   promise. This top-level helper relies on a module-scoped federation
+ *   instance and only resolves against the most recent `initFederation` call,
+ *   which is brittle in tests and multi-host setups. Example:
+ *   ```ts
+ *   const { loadRemoteModule } = await initFederation(...);
+ *   await loadRemoteModule('mfe1', './Component');
+ *   ```
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadRemoteModule<T = any>(

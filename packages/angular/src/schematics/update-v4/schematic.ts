@@ -1,7 +1,6 @@
 import type { Rule, Tree } from '@angular-devkit/schematics';
 import type { UpdateV4Schema } from './schema.js';
 
-import { NodePackageInstallTask } from '@angular-devkit/schematics/tasks';
 import { getWorkspaceFileName } from '../init/schematic.js';
 
 import * as path from 'path';
@@ -10,24 +9,15 @@ const V3_PACKAGE = '@angular-architects/native-federation';
 const V4_PACKAGE = '@angular-architects/native-federation-v4';
 const V3_BUILDER = `${V3_PACKAGE}:build`;
 const V4_BUILDER = `${V4_PACKAGE}:build`;
-const V3_RUNTIME_IMPORT = `@angular-architects/native-federation`;
-const V4_RUNTIME_IMPORT = `@softarc/native-federation-runtime`;
-const ORCHESTRATOR_PACKAGE = `@softarc/native-federation-orchestrator`;
 
 export default function updateV4(options: UpdateV4Schema): Rule {
-  return async function (tree: Tree, context) {
+  return async function (tree: Tree) {
     const workspaceFileName = getWorkspaceFileName(tree);
     const workspace = JSON.parse(tree.read(workspaceFileName)?.toString('utf8') ?? '{}');
 
     updateBuilderReferences(tree, workspace, workspaceFileName);
     migrateFederationConfigs(tree, workspace, options);
     migrateMainTs(tree, workspace, options);
-
-    if (options.orchestrator) {
-      installOrchestratorPackage(tree);
-      migrateMainTsToOrchestrator(tree, workspace, options);
-      context.addTask(new NodePackageInstallTask());
-    }
   };
 }
 
@@ -127,7 +117,7 @@ function migrateFederationConfigs(tree: Tree, workspace: any, options: UpdateV4S
 
 /**
  * Step 4: Update main.ts imports from @angular-architects/native-federation
- * to @softarc/native-federation-runtime
+ * to @angular-architects/native-federation-v4
  */
 function migrateMainTs(tree: Tree, workspace: any, options: UpdateV4Schema): void {
   const projects = resolveProjects(workspace, options);
@@ -146,105 +136,15 @@ function migrateMainTs(tree: Tree, workspace: any, options: UpdateV4Schema): voi
     let content = tree.readText(main);
     const originalContent = content;
 
-    // Update initFederation import
-    content = content.replace(new RegExp(escapeRegExp(V3_RUNTIME_IMPORT), 'g'), V4_RUNTIME_IMPORT);
+    content = content.replace(
+      new RegExp(`(['"])${escapeRegExp(V3_PACKAGE)}\\1`, 'g'),
+      `$1${V4_PACKAGE}$1`
+    );
 
     if (content !== originalContent) {
       tree.overwrite(main, content);
       console.log(`Updated initFederation import in ${main}`);
     }
-  }
-}
-
-/**
- * Optional Step 5: Add @softarc/native-federation-orchestrator to package.json dependencies
- */
-function installOrchestratorPackage(tree: Tree): void {
-  const packageJson = JSON.parse(tree.read('package.json')?.toString('utf8') ?? '{}');
-
-  if (!packageJson.dependencies) {
-    packageJson.dependencies = {};
-  }
-
-  if (!packageJson.dependencies[ORCHESTRATOR_PACKAGE]) {
-    packageJson.dependencies[ORCHESTRATOR_PACKAGE] = '^4.0.0';
-    tree.overwrite('package.json', JSON.stringify(packageJson, null, 2));
-    console.log(`Added ${ORCHESTRATOR_PACKAGE} to dependencies`);
-  }
-}
-
-/**
- * Optional Step 6: Surgically update main.ts to use the orchestrator.
- *
- * - Replaces the initFederation import source with @softarc/native-federation-orchestrator
- * - Adds the orchestrator /options import
- * - Rewrites the initFederation() call:
- *   - If it had a first argument, keeps it and appends the orchestrator options as second arg
- *   - If it had no arguments, uses {} as first arg and the orchestrator options as second arg
- */
-function migrateMainTsToOrchestrator(tree: Tree, workspace: any, options: UpdateV4Schema): void {
-  const projects = resolveProjects(workspace, options);
-
-  const orchestratorOptions = `{
-  ...useShimImportMap({ shimMode: true }),
-  logger: consoleLogger,
-  storage: globalThisStorageEntry,
-  hostRemoteEntry: './remoteEntry.json',
-  logLevel: 'debug',
-}`;
-
-  const optionsImport = `import {
-  useShimImportMap,
-  consoleLogger,
-  globalThisStorageEntry,
-} from '${ORCHESTRATOR_PACKAGE}/options';`;
-
-  for (const { projectConfig } of projects) {
-    const main =
-      projectConfig?.architect?.build?.options?.browser ??
-      projectConfig?.architect?.build?.options?.main ??
-      projectConfig?.architect?.esbuild?.options?.browser ??
-      projectConfig?.architect?.esbuild?.options?.main;
-
-    if (!main || !tree.exists(main)) {
-      continue;
-    }
-
-    let content = tree.readText(main);
-
-    // 1. Replace the import source to the orchestrator package
-    content = content.replace(
-      new RegExp(
-        `from\\s+['"](?:${escapeRegExp(V4_RUNTIME_IMPORT)}|${escapeRegExp(V3_RUNTIME_IMPORT)})['"]`,
-        'g'
-      ),
-      `from '${ORCHESTRATOR_PACKAGE}'`
-    );
-
-    // 2. Add the /options import after the orchestrator import line
-    if (!content.includes(`${ORCHESTRATOR_PACKAGE}/options`)) {
-      content = content.replace(
-        new RegExp(
-          `(import\\s+\\{[^}]*\\}\\s+from\\s+['"]${escapeRegExp(ORCHESTRATOR_PACKAGE)}['"];?)`
-        ),
-        `$1\n${optionsImport}`
-      );
-    }
-
-    // 3. Rewrite initFederation(...) call — extract existing first arg if present
-    const initMatch = content.match(/initFederation\s*\(([^)]*)\)/s);
-
-    if (initMatch) {
-      const existingArgs = initMatch[1]!.trim();
-      const firstArg = existingArgs.length > 0 ? existingArgs : '{}';
-      content = content.replace(
-        initMatch[0],
-        `initFederation(${firstArg}, ${orchestratorOptions})`
-      );
-    }
-
-    tree.overwrite(main, content);
-    console.log(`Switched ${main} to use the orchestrator`);
   }
 }
 
