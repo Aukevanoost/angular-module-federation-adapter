@@ -175,9 +175,9 @@ importers:
       '@softarc/native-federation':
         specifier: ~4.0.0
         version: 4.0.0(typescript@5.9.3)
-      '@softarc/native-federation-runtime':
-        specifier: ~4.0.0
-        version: 4.0.0(typescript@5.9.3)
+      '@softarc/native-federation-orchestrator':
+        specifier: ^4.0.0
+        version: 4.0.2
 
 packages:
 
@@ -2680,8 +2680,8 @@ packages:
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
 
-  '@softarc/native-federation-runtime@4.0.0':
-    resolution: {integrity: sha512-KaKZ/WBF0uS9IcinmguL+BPWLCFxPgzzTnEgWWWlqLrXyFeHDDAZGqRMsVnO0VebCgW+9+3Fkt18mxIXssgcaA==}
+  '@softarc/native-federation-orchestrator@4.0.2':
+    resolution: {integrity: sha512-Jj7YPpqW5IKfJdgPr+VINlN2MTH+hSE5J1r6dTjKJMMzHL/ZQlJN++tyr3o7fJvm718/grPWCDR0fV+U67Q6BQ==}
 
   '@softarc/native-federation@4.0.0':
     resolution: {integrity: sha512-O0IQwdeVxIRTz0VsjinUHJt/NrxXseys6yTHtybkolbdDGGUJxuaCvwDRFUuMJmV3lsd8UDZIBloN69uhZNxug==}
@@ -8919,11 +8919,9 @@ snapshots:
 
   '@sindresorhus/is@4.6.0': {}
 
-  '@softarc/native-federation-runtime@4.0.0(typescript@5.9.3)':
+  '@softarc/native-federation-orchestrator@4.0.2':
     dependencies:
-      '@softarc/native-federation': 4.0.0(typescript@5.9.3)
-    transitivePeerDependencies:
-      - typescript
+      semver: 7.7.4
 
   '@softarc/native-federation@4.0.0(typescript@5.9.3)':
     dependencies:
