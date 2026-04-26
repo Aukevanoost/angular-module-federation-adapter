@@ -17,36 +17,36 @@ import {
 import { normalizeOptions } from '@angular-devkit/build-angular/src/builders/dev-server/options.js';
 import type { Schema as DevServerSchema } from '@angular-devkit/build-angular/src/builders/dev-server/schema.js';
 
+import { type JsonObject } from '@angular-devkit/core';
 import {
   buildForFederation,
-  rebuildForFederation,
-  type FederationInfo,
-  type NormalizedFederationOptions,
-  getExternals,
-  normalizeFederationOptions,
-  setBuildAdapter,
   createFederationCache,
+  type FederationInfo,
+  getExternals,
+  type NormalizedFederationOptions,
+  normalizeFederationOptions,
+  rebuildForFederation,
+  setBuildAdapter,
 } from '@softarc/native-federation';
 import {
-  logger,
-  setLogLevel,
-  RebuildQueue,
   AbortedError,
-  getDefaultCachePath,
-  type NfFileWatcher,
-  syncNfFileWatcher,
   createNfWatcher,
+  getDefaultCachePath,
+  logger,
+  type NfFileWatcher,
+  RebuildQueue,
+  setLogLevel,
+  syncNfFileWatcher,
 } from '@softarc/native-federation/internal';
-import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
-import { type JsonObject } from '@angular-devkit/core';
+import { type Plugin, type PluginBuild } from 'esbuild';
 import { existsSync, mkdirSync, rmSync } from 'fs';
 import { fstart } from '../../tools/fstart-as-data-url.js';
-import { type Plugin, type PluginBuild } from 'esbuild';
+import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
 import { updateScriptTags } from '../../utils/update-index-html.js';
+import { checkForInvalidImports } from './../../utils/check-for-invalid-imports.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
 import type { NfBuilderSchema, NfInternalOptions } from './schema.js';
-import { checkForInvalidImports } from './../../utils/check-for-invalid-imports.js';
 
 const originalWrite = process.stderr.write.bind(process.stderr);
 
@@ -294,7 +294,9 @@ export async function* runBuilder(
       },
       next: () => void
     ) => {
-      const url = removeBaseHref(req, ngBuilderOptions.baseHref);
+      const rawUrl = removeBaseHref(req, ngBuilderOptions.baseHref);
+
+      const url = new URL(rawUrl || '/', 'http://localhost').pathname;
 
       const fileName = path.join(normalized.options.workspaceRoot, devServerOutputPath, url);
 
