@@ -130,13 +130,13 @@ export async function* runBuilder(
   /**
    * Explicitly defined as devServer or if the target contains "serve"
    */
-  const runServer =
+  const runViteServer =
     typeof nfBuilderOptions.devServer !== 'undefined'
       ? !!nfBuilderOptions.devServer
       : target.target.includes('serve');
 
   let ngBuilderOptions = (await context.validateOptions(
-    runServer
+    runViteServer
       ? ({
           ...targetOptions,
           port: nfBuilderOptions.port || targetOptions['port'],
@@ -147,7 +147,8 @@ export async function* runBuilder(
 
   let serverOptions = null;
 
-  const watch = nfBuilderOptions.watch;
+  const watch = nfBuilderOptions.watch ?? ngBuilderOptions.watch ?? runViteServer;
+  ngBuilderOptions.watch = watch;
 
   if (ngBuilderOptions['buildTarget']) {
     serverOptions = await normalizeOptions(
@@ -164,8 +165,6 @@ export async function* runBuilder(
     ngBuilderOptions = (await context.validateOptions(targetOptions, builder)) as JsonObject &
       ApplicationBuilderOptions;
   }
-
-  ngBuilderOptions.watch = watch;
 
   if (nfBuilderOptions.baseHref) {
     ngBuilderOptions.baseHref = nfBuilderOptions.baseHref;
@@ -201,7 +200,7 @@ export async function* runBuilder(
 
   const i18n = await getI18nConfig(context);
 
-  const localeFilter = getLocaleFilter(ngBuilderOptions, runServer);
+  const localeFilter = getLocaleFilter(ngBuilderOptions, runViteServer);
 
   const sourceLocaleSegment =
     typeof i18n?.sourceLocale === 'string'
@@ -270,7 +269,7 @@ export async function* runBuilder(
     ngBuilderOptions.externalDependencies = externals;
   }
 
-  const isLocalDevelopment = runServer && nfBuilderOptions.dev;
+  const isLocalDevelopment = runViteServer && nfBuilderOptions.dev;
 
   // Initialize SSE reloader only for local development
   if (isLocalDevelopment && nfBuilderOptions.buildNotifications?.enable) {
@@ -326,8 +325,7 @@ export async function* runBuilder(
 
   let first = true;
 
-  const nfWatcher: NfFileWatcher | undefined =
-    nfBuilderOptions.dev || watch ? createNfWatcher() : undefined;
+  const nfWatcher: NfFileWatcher | undefined = watch ? createNfWatcher() : undefined;
 
   if (nfWatcher) {
     nfWatcher.addPaths(path.dirname(path.resolve(context.workspaceRoot, federationTsConfig)));
@@ -369,7 +367,7 @@ export async function* runBuilder(
 
   const appBuilderName = '@angular/build:application';
 
-  const builderRun = runServer
+  const builderRun = runViteServer
     ? serveWithVite(
         serverOptions as unknown as Parameters<typeof serveWithVite>[0],
         appBuilderName,
@@ -403,7 +401,7 @@ export async function* runBuilder(
       if (!ngBuildStatus.success) {
         logger.warn('Skipping federation artifacts because Angular build failed.');
         buildResult = await builderIterator.next();
-      } else if (!first && (nfBuilderOptions.dev || watch)) {
+      } else if (!first && watch) {
         const nextOutputPromise = builderIterator.next();
 
         const trackResult = await rebuildQueue.track(async (signal: AbortSignal) => {
@@ -486,7 +484,8 @@ export async function* runBuilder(
 
         if (trackResult.type === 'completed') {
           if (!trackResult.result.cancelled) {
-            yield { success: trackResult.result.success };
+            ngBuildStatus = { success: trackResult.result.success };
+            yield ngBuildStatus;
           }
           buildResult = await nextOutputPromise;
         } else {
@@ -505,6 +504,9 @@ export async function* runBuilder(
     if (isLocalDevelopment) {
       federationBuildNotifier.stopEventServer();
     }
+    // ref: https://github.com/angular/angular-cli/issues/33201
+    // becomes a no-op once Angular fixes the leak upstream.
+    setTimeout(() => process.exit(ngBuildStatus.success ? 0 : 1), 100).unref();
   }
 
   yield ngBuildStatus;
@@ -527,14 +529,14 @@ function writeFstartScript(nfOptions: NormalizedFederationOptions) {
   fs.writeFileSync(fstartPath, buffer, 'utf-8');
 }
 
-function getLocaleFilter(options: ApplicationBuilderOptions, runServer: boolean) {
+function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: boolean) {
   let localize = options.localize || false;
 
-  if (runServer && Array.isArray(localize) && localize.length > 1) {
+  if (runViteServer && Array.isArray(localize) && localize.length > 1) {
     localize = false;
   }
 
-  if (runServer && localize === true) {
+  if (runViteServer && localize === true) {
     localize = false;
   }
   return localize;

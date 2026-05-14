@@ -9,7 +9,7 @@ export interface NfBuilderSchema extends JsonObject {
   port: number;
   rebuildDelay: number;
   buildNotifications?: BuildNotificationOptions;
-  watch: boolean;
+  watch?: boolean;
   skipHtmlTransform: boolean;
   esmsInitOptions: ESMSInitOptions;
   baseHref?: string;
