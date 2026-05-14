@@ -484,7 +484,8 @@ export async function* runBuilder(
 
         if (trackResult.type === 'completed') {
           if (!trackResult.result.cancelled) {
-            yield { success: trackResult.result.success };
+            ngBuildStatus = { success: trackResult.result.success };
+            yield ngBuildStatus;
           }
           buildResult = await nextOutputPromise;
         } else {
@@ -503,6 +504,9 @@ export async function* runBuilder(
     if (isLocalDevelopment) {
       federationBuildNotifier.stopEventServer();
     }
+    // ref: https://github.com/angular/angular-cli/issues/33201
+    // becomes a no-op once Angular fixes the leak upstream.
+    setTimeout(() => process.exit(ngBuildStatus.success ? 0 : 1), 100).unref();
   }
 
   yield ngBuildStatus;
