@@ -135,6 +135,10 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     stylesheetBundlerOptions
   );
 
+  const customPlugins = Array.isArray(options.builderOptions.plugins)
+    ? options.builderOptions.plugins
+    : [];
+
   const config: esbuild.BuildOptions = {
     entryPoints: entryPoints.map(ep => ({
       in: ep.fileName,
@@ -157,7 +161,7 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     format: 'esm',
     target: target,
     logLimit: 0,
-    plugins: [compilerPlugin, commonjsPlugin()],
+    plugins: [compilerPlugin, commonjsPlugin(), ...customPlugins],
     define: {
       ngDevMode: dev ? 'true' : 'false',
       ngJitMode: 'false',

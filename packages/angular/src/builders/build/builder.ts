@@ -179,7 +179,13 @@ export async function* runBuilder(
       ? nfBuilderOptions.tsConfig
       : ngBuilderOptions.tsConfig;
 
-  const adapter = createAngularBuildAdapter(ngBuilderOptions, context);
+  const adapter = createAngularBuildAdapter(
+    {
+      ...ngBuilderOptions,
+      plugins: nfBuilderOptions.plugins,
+    },
+    context
+  );
 
   setBuildAdapter(adapter);
 

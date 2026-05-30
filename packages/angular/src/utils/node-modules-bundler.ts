@@ -109,6 +109,10 @@ export async function createNodeModulesEsbuildContext(options: NormalizedContext
   const commonjsPluginModule = await import('@chialab/esbuild-plugin-commonjs');
   const commonjsPlugin = commonjsPluginModule.default;
 
+  const customPlugins = Array.isArray(options.builderOptions.plugins)
+    ? options.builderOptions.plugins
+    : [];
+
   // Create JavaScriptTransformer for handling Angular partial compilation linking
   const advancedOptimizations = !dev;
   const jsTransformerCacheStore = getOrCreateJsTransformerCacheStore(cache.cachePath);
@@ -146,7 +150,11 @@ export async function createNodeModulesEsbuildContext(options: NormalizedContext
     format: 'esm',
     target: target,
     logLimit: 1,
-    plugins: [createAngularLinkerPlugin(jsTransformer, advancedOptimizations), commonjsPlugin()],
+    plugins: [
+      createAngularLinkerPlugin(jsTransformer, advancedOptimizations),
+      commonjsPlugin(),
+      ...customPlugins,
+    ],
     define: {
       ngDevMode: dev ? 'true' : 'false',
       ngJitMode: 'false',

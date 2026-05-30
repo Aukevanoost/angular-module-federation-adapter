@@ -22,4 +22,4 @@ export interface NfBuilderSchema extends JsonObject {
   cacheExternalArtifacts?: boolean;
 }
 
-export type NfInternalOptions = { plugins: Plugin[] };
+export type NfInternalOptions = { plugins?: Plugin[] };
