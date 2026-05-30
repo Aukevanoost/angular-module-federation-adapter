@@ -77,7 +77,7 @@ export default function config(options: NfSchematicSchema): Rule {
     return chain([
       generateRule,
       makeMainAsync(main, options, remoteMap, manifestRelPath),
-      ssr ? makeServerAsync(server, options, remoteMap) : noop(),
+      ssr ? makeServerAsync(server, options) : noop(),
     ]);
   };
 }

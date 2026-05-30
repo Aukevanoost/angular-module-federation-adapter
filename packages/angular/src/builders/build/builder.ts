@@ -40,7 +40,7 @@ import {
 } from '@softarc/native-federation/internal';
 import { type Plugin, type PluginBuild } from 'esbuild';
 import { existsSync, mkdirSync, rmSync } from 'fs';
-import { fstart } from '../../tools/fstart-as-data-url.js';
+import { federationServerEntry } from '../../tools/federation-server-entry.js';
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
 import { updateScriptTags } from '../../utils/update-index-html.js';
@@ -357,10 +357,6 @@ export async function* runBuilder(
     syncNfFileWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
   }
 
-  if (activateSsr) {
-    writeFstartScript(normalized.options);
-  }
-
   const hasLocales = i18n?.locales && Object.keys(i18n.locales).length > 0;
   if (hasLocales && localeFilter) {
     const start = process.hrtime();
@@ -502,6 +498,14 @@ export async function* runBuilder(
       }
       first = false;
     }
+
+    // For an SSR build, rewrite the emitted server entry so federation is
+    // initialised before any '@angular/*' module is evaluated (see
+    // federation-server-entry.ts). Done after the Angular build so the entry it
+    // produced (with the injected app-engine registration) exists on disk.
+    if (activateSsr && ngBuildStatus.success) {
+      writeFederationServerEntry(normalized.options);
+    }
   } finally {
     rebuildQueue.dispose();
     await adapter.dispose();
@@ -527,12 +531,45 @@ function removeBaseHref(req: { url?: string }, baseHref?: string) {
   return url;
 }
 
-function writeFstartScript(nfOptions: NormalizedFederationOptions) {
+/**
+ * Make `node dist/<app>/server/server.mjs` work for a federated SSR host
+ * without a hand-written pre-entry.
+ *
+ * The Angular CLI emits the SSR entry (`server.mjs`) with the `@angular/ssr`
+ * app-engine registration prepended, so the entry's static import graph pulls
+ * in `@angular/*` — which ESM evaluates before the entry body, before any
+ * `initNodeFederation()` could register the node loader. We therefore rename
+ * that Angular-laden entry to `bootstrap-server.mjs` and drop in an
+ * Angular-free `server.mjs` (see {@link federationServerEntry}) that registers
+ * the loader first and only then dynamically imports the bootstrap.
+ */
+function writeFederationServerEntry(nfOptions: NormalizedFederationOptions) {
   const serverOutpath = path.join(nfOptions.outputPath, '../server');
-  const fstartPath = path.join(serverOutpath, 'fstart.mjs');
-  const buffer = Buffer.from(fstart, 'base64');
-  fs.mkdirSync(serverOutpath, { recursive: true });
-  fs.writeFileSync(fstartPath, buffer, 'utf-8');
+  const emittedEntry = path.join(serverOutpath, 'server.mjs');
+  const bootstrapEntry = path.join(serverOutpath, 'bootstrap-server.mjs');
+
+  if (!fs.existsSync(emittedEntry)) {
+    logger.warn(
+      `SSR: expected '${emittedEntry}' was not found; skipping federation server entry. ` +
+        `Federated remotes may fail to render server-side.`
+    );
+    return;
+  }
+
+  fs.renameSync(emittedEntry, bootstrapEntry);
+
+  // Preserve the source map (if any) and repoint its reference.
+  const emittedMap = `${emittedEntry}.map`;
+  if (fs.existsSync(emittedMap)) {
+    const bootstrapMap = `${bootstrapEntry}.map`;
+    fs.renameSync(emittedMap, bootstrapMap);
+    const bootstrapCode = fs
+      .readFileSync(bootstrapEntry, 'utf-8')
+      .replace(/sourceMappingURL=server\.mjs\.map/g, 'sourceMappingURL=bootstrap-server.mjs.map');
+    fs.writeFileSync(bootstrapEntry, bootstrapCode, 'utf-8');
+  }
+
+  fs.writeFileSync(emittedEntry, federationServerEntry, 'utf-8');
 }
 
 function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: boolean) {
