@@ -28,7 +28,6 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^17.0.0",
-    "jiti": "^2.6.1",
     "jsdom": "^29.0.0",
     "msw": "^2.12.3",
     "nx": "~22.6.0",
@@ -43,12 +42,6 @@
   "workspaces": [
     "packages/*"
   ],
-  "pnpm": {
-    "overrides": {
-      "lodash": "^4.18.0",
-      "minimatch": "^7.4.8"
-    }
-  },
   "dependencies": {
     "@angular-devkit/architect": "^0.2102.0",
     "@angular-devkit/build-angular": "^21.2.0",
