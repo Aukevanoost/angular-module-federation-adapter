@@ -41,6 +41,8 @@ import {
 import { type Plugin, type PluginBuild } from 'esbuild';
 import { existsSync, mkdirSync, rmSync } from 'fs';
 import { federationServerEntry } from '../../tools/federation-server-entry.js';
+import { generateDevHostInstancesEntry } from '../../tools/dev-host-instances-entry.js';
+import { devHostInstancesPlugin } from '../../plugin/dev-host-instances-plugin.js';
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
 import { updateScriptTags } from '../../utils/update-index-html.js';
@@ -276,6 +278,19 @@ export async function* runBuilder(
   }
 
   const isLocalDevelopment = runViteServer && nfBuilderOptions.dev;
+
+  // Dev (`ng serve`) SSR federation: inject a bootstrap that inits federation
+  // and bridges the host's singletons to remotes. The plugin self-gates on the
+  // node-platform build, so this is a no-op for non-SSR dev servers. (Prod SSR
+  // is handled separately by writeFederationServerEntry.)
+  if (isLocalDevelopment) {
+    plugins.push(
+      devHostInstancesPlugin(
+        generateDevHostInstancesEntry({ relBrowserPath: browserOutputPath }),
+        path.join(cachePath, 'nf-dev-host-instances.mjs')
+      )
+    );
+  }
 
   // Initialize SSE reloader only for local development
   if (isLocalDevelopment && nfBuilderOptions.buildNotifications?.enable) {
