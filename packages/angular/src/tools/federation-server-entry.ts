@@ -31,7 +31,17 @@ const hostRemoteEntry = pathToFileURL(join(browserDir, 'remoteEntry.json')).href
 try {
   const { loadRemoteModule } = await initNodeFederation(
     existsSync(manifestPath) ? manifestPath : {},
-    { hostRemoteEntry },
+    {
+      hostRemoteEntry,
+      // Bridge the host's shared singletons (every '@angular/*' secondary, rxjs,
+      // zone.js, …) to remotes loaded during SSR. The loader is registered above
+      // before any '@angular/*' is evaluated, so the default '(s) => import(s)'
+      // resolves each specifier through the import map — the one shared chunk —
+      // and publishes it on globalThis.__NF_HOST_INSTANCES__. Without this the
+      // remote's '@angular/core/rxjs-interop' resolves a private build-internal
+      // chunk instead of the shared core instance → NG0203 (no injection context).
+      hostInstances: 'all',
+    },
   );
   // Bridge the loader to the app (read by the host's SSR render code).
   globalThis['__NF_HOST_SERVER_LOADER__'] = loadRemoteModule;
