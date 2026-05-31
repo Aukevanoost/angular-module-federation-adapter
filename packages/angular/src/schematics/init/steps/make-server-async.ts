@@ -2,19 +2,12 @@ import type { Rule, Tree } from '@angular-devkit/schematics';
 import type { NfSchematicSchema } from '../schema.js';
 
 /**
- * Prepare an SSR project's `server.ts` for federated SSR.
- *
- * Federation is *not* initialised here. The build emits an Angular-free
- * `server.mjs` that registers the node loader first and then imports this file
- * (renamed to `bootstrap-server.mjs`) — see `tools/federation-server-entry.ts`.
- * Initialising inside `server.ts` cannot work: the Angular CLI injects the
- * `@angular/ssr` app-engine registration into the entry's static graph, which
- * ESM evaluates before the body runs.
- *
- * So this step only:
+ * Prepare an SSR project's `server.ts` for federated SSR. Federation is *not*
+ * initialised here (the build's generated entry does that — see
+ * `tools/federation-server-entry.ts`); this step only:
  *  - enables CORS (remotes are served from other origins), and
- *  - makes the server listen when it is imported (not the main module) by also
- *    honouring `pm_id`, which the build's generated entry sets.
+ *  - makes the server listen when imported (not main) by honouring `pm_id`,
+ *    which the generated entry sets.
  */
 export function makeServerAsync(server: string, options: NfSchematicSchema): Rule {
   return async function (tree: Tree) {

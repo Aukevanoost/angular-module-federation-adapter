@@ -2,21 +2,19 @@
  * Source of the dev-only SSR bootstrap injected into the `ng serve` server
  * bundle (see `plugin/dev-host-instances-plugin.ts`).
  *
- * Under `ng serve` the host loads via Vite's SSR runner while a remote loads via
- * the orchestrator's Node loader — two `@angular/core` instances → NG0203. The
- * fix shares the instance: `hostInstances` has the orchestrator publish the
- * host's singletons and re-export them to remotes. We pass our own `load` so
- * instances are captured in *this* (the host's) realm, not the orchestrator's,
- * which under Vite SSR differs. (Production dedupes via the import map instead.)
+ * Under `ng serve` the host loads via Vite's SSR runner while remotes load via
+ * the orchestrator's Node loader — two `@angular/core` instances → NG0203. Fix:
+ * `hostInstances` publishes the host's singletons for remotes to re-use. We pass
+ * our own `load` so instances are captured in the host's realm, not the
+ * orchestrator's (they differ under Vite SSR). Prod dedupes via the import map.
  */
 export interface DevHostInstancesOptions {
   /** Browser output dir relative to the workspace root, e.g. `dist/host/browser`. */
   relBrowserPath: string;
   /**
-   * Origin of the running dev server, e.g. `http://localhost:4200`. Under
-   * `ng serve` the federation manifest lives only in Vite's memory (never on
-   * disk), so it has to be fetched over HTTP from this origin. Omit for
-   * non-serve builds, where the manifest is read from `relBrowserPath` on disk.
+   * Origin of the dev server, e.g. `http://localhost:4200`. Under `ng serve` the
+   * manifest lives only in Vite's memory, so it's fetched over HTTP from here.
+   * Omit for non-serve builds, where it's read from `relBrowserPath` on disk.
    */
   devServerOrigin?: string;
 }
@@ -35,17 +33,15 @@ const browserDir = join(process.cwd(), ${JSON.stringify(relBrowserPath)});
 const manifestPath = join(browserDir, 'federation.manifest.json');
 const devServerOrigin = ${JSON.stringify(devServerOrigin ?? null)};
 
-// Under \`ng serve\` Vite serves the federation manifest (and remote entries)
-// from memory and never writes them to disk, so prefer the dev server's own
-// origin over the never-present on-disk path.
+// Vite serves the manifest and remote entries from memory under \`ng serve\`,
+// so prefer the dev server's origin over the never-present on-disk path.
 const hostRemoteEntry = devServerOrigin
   ? devServerOrigin + '/remoteEntry.json'
   : join(browserDir, 'remoteEntry.json');
 
-// The orchestrator's readSourceBytes resolves http(s):// manifests and remote
-// entries, but a static host returns 404 for the manifest — fetch it here so
-// that 404 degrades to an empty manifest (which still bridges host singletons)
-// instead of failing init. With no known origin, fall back to the on-disk path.
+// A static host returns 404 for the manifest — fetch it here so that 404
+// degrades to an empty manifest (which still bridges host singletons) instead
+// of failing init. With no known origin, fall back to the on-disk path.
 async function resolveManifest() {
   if (devServerOrigin) {
     try {

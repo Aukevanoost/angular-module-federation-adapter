@@ -28,7 +28,7 @@ export function addDependencies(tree: Tree, context: SchematicContext, ssr: bool
   addPackageJsonDependency(tree, {
     name: '@softarc/native-federation-orchestrator',
     type: ssr ? NodeDependencyType.Default : NodeDependencyType.Dev,
-    version: '^4.0.0',
+    version: '^4.2.2',
     overwrite: true,
   });
 

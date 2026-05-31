@@ -6,14 +6,12 @@ import type { Plugin } from 'esbuild';
  * Injects the dev-only host-instance bootstrap (see
  * `tools/dev-host-instances-entry.ts`) into the `ng serve` SSR server bundle.
  *
- * Gates on `platform === 'node'`: only SSR projects produce a node-platform
- * esbuild pass, and the serve target carries no `ssr` flag — so this, not an
- * `ssr` option, is the reliable SSR signal. Non-SSR dev servers are a no-op.
+ * Gates on `platform === 'node'` — the only reliable SSR signal here, since the
+ * serve target carries no `ssr` flag. CSR dev servers are a no-op.
  *
- * `inject` makes the bootstrap the first import of every server entry, so its
- * top-level `await` runs before the app. The orchestrator's Node entry is kept
- * external so its `import(url)` stays native and the `module.register()` loader
- * hook fires — if it were bundled, the bridge would silently never run.
+ * `inject` makes the bootstrap run before the app. The orchestrator's Node entry
+ * is kept external so its `module.register()` loader hook fires; bundled, the
+ * bridge would silently never run.
  *
  * @param bootstrapSource generated bootstrap module source.
  * @param bootstrapFilePath absolute path to write it to (`inject` needs a file).

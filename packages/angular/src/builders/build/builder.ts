@@ -279,15 +279,13 @@ export async function* runBuilder(
 
   const isLocalDevelopment = runViteServer && nfBuilderOptions.dev;
 
-  // Dev (`ng serve`) SSR federation: inject a bootstrap that inits federation
-  // and bridges the host's singletons to remotes. The plugin self-gates on the
-  // node-platform build, so this is a no-op for non-SSR dev servers. (Prod SSR
-  // is handled separately by writeFederationServerEntry.)
+  // Dev SSR: inject a bootstrap that inits federation and bridges the host's
+  // singletons to remotes. The plugin self-gates on platform === 'node', so
+  // it's a no-op for CSR dev servers. (Prod SSR uses writeFederationServerEntry.)
   if (isLocalDevelopment) {
-    // The injected node-side bridge fetches the federation manifest over HTTP
-    // from the dev server's own origin (Vite never writes it to disk under
-    // `ng serve`), so derive that origin from the resolved dev-server options.
-    const devServerOrigin = getDevServerOrigin(serverOptions, ngBuilderOptions);
+    // The bridge fetches the manifest over HTTP from the dev server's origin
+    // (Vite never writes it to disk under `ng serve`).
+    const devServerOrigin = getDevServerOrigin(serverOptions);
 
     plugins.push(
       devHostInstancesPlugin(
@@ -519,10 +517,8 @@ export async function* runBuilder(
       first = false;
     }
 
-    // For an SSR build, rewrite the emitted server entry so federation is
-    // initialised before any '@angular/*' module is evaluated (see
-    // federation-server-entry.ts). Done after the Angular build so the entry it
-    // produced (with the injected app-engine registration) exists on disk.
+    // Rewrite the emitted SSR entry (see writeFederationServerEntry). After the
+    // Angular build so the entry it produced exists on disk.
     if (activateSsr && ngBuildStatus.success) {
       writeFederationServerEntry(normalized.options);
     }
@@ -552,16 +548,9 @@ function removeBaseHref(req: { url?: string }, baseHref?: string) {
 }
 
 /**
- * Make `node dist/<app>/server/server.mjs` work for a federated SSR host
- * without a hand-written pre-entry.
- *
- * The Angular CLI emits the SSR entry (`server.mjs`) with the `@angular/ssr`
- * app-engine registration prepended, so the entry's static import graph pulls
- * in `@angular/*` — which ESM evaluates before the entry body, before any
- * `initNodeFederation()` could register the node loader. We therefore rename
- * that Angular-laden entry to `bootstrap-server.mjs` and drop in an
- * Angular-free `server.mjs` (see {@link federationServerEntry}) that registers
- * the loader first and only then dynamically imports the bootstrap.
+ * Rename the CLI's emitted `server.mjs` to `bootstrap-server.mjs` and write the
+ * Angular-free {@link federationServerEntry} in its place, so the node loader is
+ * registered before any `@angular/*` is evaluated. See that file for the why.
  */
 function writeFederationServerEntry(nfOptions: NormalizedFederationOptions) {
   const serverOutpath = path.join(nfOptions.outputPath, '../server');
@@ -593,19 +582,20 @@ function writeFederationServerEntry(nfOptions: NormalizedFederationOptions) {
 }
 
 /**
- * Build the dev server's own origin (e.g. `http://localhost:4200`) from the
- * resolved dev-server options. `serverOptions` is the normalized dev-server
- * schema, whose `host`/`port` already carry Angular's defaults; we still fall
- * back to `ngBuilderOptions.port` (and localhost:4200) when it is absent.
+ * Build the dev server's origin (e.g. `http://localhost:4200`) from the resolved
+ * dev-server options, whose `port` Angular's normalizeOptions already defaults.
+ * Omits the port when none is set, and returns undefined when there are no serve
+ * options at all, so the bridge falls back to the on-disk manifest path.
  */
 function getDevServerOrigin(
-  serverOptions: { ssl?: boolean; host?: string; port?: number } | null,
-  ngBuilderOptions: JsonObject & ApplicationBuilderOptions
-): string {
-  const protocol = serverOptions?.ssl ? 'https' : 'http';
-  const host = serverOptions?.host || 'localhost';
-  const port = serverOptions?.port ?? (ngBuilderOptions['port'] as number | undefined) ?? 4200;
-  return `${protocol}://${host}:${port}`;
+  serverOptions: { ssl?: boolean; host?: string; port?: number } | null
+): string | undefined {
+  if (!serverOptions) {
+    return undefined;
+  }
+  const protocol = serverOptions.ssl ? 'https' : 'http';
+  const host = serverOptions.host || 'localhost';
+  return serverOptions.port ? `${protocol}://${host}:${serverOptions.port}` : `${protocol}://${host}`;
 }
 
 function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: boolean) {
