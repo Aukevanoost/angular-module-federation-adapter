@@ -40,7 +40,9 @@ import {
 } from '@softarc/native-federation/internal';
 import { type Plugin, type PluginBuild } from 'esbuild';
 import { existsSync, mkdirSync, rmSync } from 'fs';
-import { fstart } from '../../tools/fstart-as-data-url.js';
+import { federationServerEntry } from '../../tools/federation-server-entry.js';
+import { generateDevHostInstancesEntry } from '../../tools/dev-host-instances-entry.js';
+import { devHostInstancesPlugin } from '../../plugin/dev-host-instances-plugin.js';
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
 import { updateScriptTags } from '../../utils/update-index-html.js';
@@ -277,6 +279,22 @@ export async function* runBuilder(
 
   const isLocalDevelopment = runViteServer && nfBuilderOptions.dev;
 
+  // Dev SSR: inject a bootstrap that inits federation and bridges the host's
+  // singletons to remotes. The plugin self-gates on platform === 'node', so
+  // it's a no-op for CSR dev servers. (Prod SSR uses writeFederationServerEntry.)
+  if (isLocalDevelopment) {
+    // The bridge fetches the manifest over HTTP from the dev server's origin
+    // (Vite never writes it to disk under `ng serve`).
+    const devServerOrigin = getDevServerOrigin(serverOptions);
+
+    plugins.push(
+      devHostInstancesPlugin(
+        generateDevHostInstancesEntry({ relBrowserPath: browserOutputPath, devServerOrigin }),
+        path.join(cachePath, 'nf-dev-host-instances.mjs')
+      )
+    );
+  }
+
   // Initialize SSE reloader only for local development
   if (isLocalDevelopment && nfBuilderOptions.buildNotifications?.enable) {
     federationBuildNotifier.initialize(nfBuilderOptions.buildNotifications.endpoint);
@@ -355,10 +373,6 @@ export async function* runBuilder(
 
   if (nfWatcher) {
     syncNfFileWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
-  }
-
-  if (activateSsr) {
-    writeFstartScript(normalized.options);
   }
 
   const hasLocales = i18n?.locales && Object.keys(i18n.locales).length > 0;
@@ -502,6 +516,12 @@ export async function* runBuilder(
       }
       first = false;
     }
+
+    // Rewrite the emitted SSR entry (see writeFederationServerEntry). After the
+    // Angular build so the entry it produced exists on disk.
+    if (activateSsr && ngBuildStatus.success) {
+      writeFederationServerEntry(normalized.options);
+    }
   } finally {
     rebuildQueue.dispose();
     await adapter.dispose();
@@ -527,12 +547,55 @@ function removeBaseHref(req: { url?: string }, baseHref?: string) {
   return url;
 }
 
-function writeFstartScript(nfOptions: NormalizedFederationOptions) {
+/**
+ * Rename the CLI's emitted `server.mjs` to `bootstrap-server.mjs` and write the
+ * Angular-free {@link federationServerEntry} in its place, so the node loader is
+ * registered before any `@angular/*` is evaluated. See that file for the why.
+ */
+function writeFederationServerEntry(nfOptions: NormalizedFederationOptions) {
   const serverOutpath = path.join(nfOptions.outputPath, '../server');
-  const fstartPath = path.join(serverOutpath, 'fstart.mjs');
-  const buffer = Buffer.from(fstart, 'base64');
-  fs.mkdirSync(serverOutpath, { recursive: true });
-  fs.writeFileSync(fstartPath, buffer, 'utf-8');
+  const emittedEntry = path.join(serverOutpath, 'server.mjs');
+  const bootstrapEntry = path.join(serverOutpath, 'bootstrap-server.mjs');
+
+  if (!fs.existsSync(emittedEntry)) {
+    logger.warn(
+      `SSR: expected '${emittedEntry}' was not found; skipping federation server entry. ` +
+        `Federated remotes may fail to render server-side.`
+    );
+    return;
+  }
+
+  fs.renameSync(emittedEntry, bootstrapEntry);
+
+  // Preserve the source map (if any) and repoint its reference.
+  const emittedMap = `${emittedEntry}.map`;
+  if (fs.existsSync(emittedMap)) {
+    const bootstrapMap = `${bootstrapEntry}.map`;
+    fs.renameSync(emittedMap, bootstrapMap);
+    const bootstrapCode = fs
+      .readFileSync(bootstrapEntry, 'utf-8')
+      .replace(/sourceMappingURL=server\.mjs\.map/g, 'sourceMappingURL=bootstrap-server.mjs.map');
+    fs.writeFileSync(bootstrapEntry, bootstrapCode, 'utf-8');
+  }
+
+  fs.writeFileSync(emittedEntry, federationServerEntry, 'utf-8');
+}
+
+/**
+ * Build the dev server's origin (e.g. `http://localhost:4200`) from the resolved
+ * dev-server options, whose `port` Angular's normalizeOptions already defaults.
+ * Omits the port when none is set, and returns undefined when there are no serve
+ * options at all, so the bridge falls back to the on-disk manifest path.
+ */
+function getDevServerOrigin(
+  serverOptions: { ssl?: boolean; host?: string; port?: number } | null
+): string | undefined {
+  if (!serverOptions) {
+    return undefined;
+  }
+  const protocol = serverOptions.ssl ? 'https' : 'http';
+  const host = serverOptions.host || 'localhost';
+  return serverOptions.port ? `${protocol}://${host}:${serverOptions.port}` : `${protocol}://${host}`;
 }
 
 function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: boolean) {

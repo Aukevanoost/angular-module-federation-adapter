@@ -156,7 +156,7 @@ export async function createNodeModulesEsbuildContext(options: NormalizedContext
       ...customPlugins,
     ],
     define: {
-      ngDevMode: dev ? 'true' : 'false',
+      ...(dev ? {} : { ngDevMode: 'false' }),
       ngJitMode: 'false',
     },
     ...(builderOptions.loader ? { loader: builderOptions.loader } : {}),
