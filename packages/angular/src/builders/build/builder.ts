@@ -284,9 +284,14 @@ export async function* runBuilder(
   // node-platform build, so this is a no-op for non-SSR dev servers. (Prod SSR
   // is handled separately by writeFederationServerEntry.)
   if (isLocalDevelopment) {
+    // The injected node-side bridge fetches the federation manifest over HTTP
+    // from the dev server's own origin (Vite never writes it to disk under
+    // `ng serve`), so derive that origin from the resolved dev-server options.
+    const devServerOrigin = getDevServerOrigin(serverOptions, ngBuilderOptions);
+
     plugins.push(
       devHostInstancesPlugin(
-        generateDevHostInstancesEntry({ relBrowserPath: browserOutputPath }),
+        generateDevHostInstancesEntry({ relBrowserPath: browserOutputPath, devServerOrigin }),
         path.join(cachePath, 'nf-dev-host-instances.mjs')
       )
     );
@@ -585,6 +590,22 @@ function writeFederationServerEntry(nfOptions: NormalizedFederationOptions) {
   }
 
   fs.writeFileSync(emittedEntry, federationServerEntry, 'utf-8');
+}
+
+/**
+ * Build the dev server's own origin (e.g. `http://localhost:4200`) from the
+ * resolved dev-server options. `serverOptions` is the normalized dev-server
+ * schema, whose `host`/`port` already carry Angular's defaults; we still fall
+ * back to `ngBuilderOptions.port` (and localhost:4200) when it is absent.
+ */
+function getDevServerOrigin(
+  serverOptions: { ssl?: boolean; host?: string; port?: number } | null,
+  ngBuilderOptions: JsonObject & ApplicationBuilderOptions
+): string {
+  const protocol = serverOptions?.ssl ? 'https' : 'http';
+  const host = serverOptions?.host || 'localhost';
+  const port = serverOptions?.port ?? (ngBuilderOptions['port'] as number | undefined) ?? 4200;
+  return `${protocol}://${host}:${port}`;
 }
 
 function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: boolean) {
