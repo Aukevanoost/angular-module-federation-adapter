@@ -50,6 +50,11 @@
       "types": "./src/internal.d.ts",
       "import": "./src/internal.js",
       "default": "./src/internal.js"
+    },
+    "./node-preload": {
+      "types": "./src/node-preload.d.ts",
+      "import": "./src/node-preload.js",
+      "default": "./src/node-preload.js"
     }
   },
   "homepage": "https://github.com/native-federation/angular-adapter",
