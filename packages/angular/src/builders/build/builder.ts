@@ -23,7 +23,6 @@ import {
   createFederationCache,
   type FederationInfo,
   getExternals,
-  type NormalizedFederationOptions,
   normalizeFederationOptions,
   rebuildForFederation,
   setBuildAdapter,
@@ -39,8 +38,6 @@ import {
   syncNfFileWatcher,
 } from '@softarc/native-federation/internal';
 import { type Plugin, type PluginBuild } from 'esbuild';
-import { existsSync, mkdirSync, rmSync } from 'fs';
-import { federationServerEntry } from '../../tools/federation-server-entry.js';
 import { generateDevHostInstancesEntry } from '../../tools/dev-host-instances-entry.js';
 import { devHostInstancesPlugin } from '../../plugin/dev-host-instances-plugin.js';
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
@@ -281,7 +278,8 @@ export async function* runBuilder(
 
   // Dev SSR: inject a bootstrap that inits federation and bridges the host's
   // singletons to remotes. The plugin self-gates on platform === 'node', so
-  // it's a no-op for CSR dev servers. (Prod SSR uses writeFederationServerEntry.)
+  // it's a no-op for CSR dev servers. (Prod SSR registers the loader at launch
+  // via the `node --import .../node-preload` preload — see src/node-preload.ts.)
   if (isLocalDevelopment) {
     // The bridge fetches the manifest over HTTP from the dev server's origin
     // (Vite never writes it to disk under `ng serve`).
@@ -355,12 +353,12 @@ export async function* runBuilder(
     nfWatcher.addPaths(path.dirname(path.resolve(context.workspaceRoot, federationTsConfig)));
   }
 
-  if (existsSync(normalized.options.outputPath)) {
-    rmSync(normalized.options.outputPath, { recursive: true });
+  if (fs.existsSync(normalized.options.outputPath)) {
+    fs.rmSync(normalized.options.outputPath, { recursive: true });
   }
 
-  if (!existsSync(normalized.options.outputPath)) {
-    mkdirSync(normalized.options.outputPath, { recursive: true });
+  if (!fs.existsSync(normalized.options.outputPath)) {
+    fs.mkdirSync(normalized.options.outputPath, { recursive: true });
   }
 
   let federationResult: FederationInfo;
@@ -516,12 +514,6 @@ export async function* runBuilder(
       }
       first = false;
     }
-
-    // Rewrite the emitted SSR entry (see writeFederationServerEntry). After the
-    // Angular build so the entry it produced exists on disk.
-    if (activateSsr && ngBuildStatus.success) {
-      writeFederationServerEntry(normalized.options);
-    }
   } finally {
     rebuildQueue.dispose();
     await adapter.dispose();
@@ -545,40 +537,6 @@ function removeBaseHref(req: { url?: string }, baseHref?: string) {
     url = url.substr(baseHref.length);
   }
   return url;
-}
-
-/**
- * Rename the CLI's emitted `server.mjs` to `bootstrap-server.mjs` and write the
- * Angular-free {@link federationServerEntry} in its place, so the node loader is
- * registered before any `@angular/*` is evaluated. See that file for the why.
- */
-function writeFederationServerEntry(nfOptions: NormalizedFederationOptions) {
-  const serverOutpath = path.join(nfOptions.outputPath, '../server');
-  const emittedEntry = path.join(serverOutpath, 'server.mjs');
-  const bootstrapEntry = path.join(serverOutpath, 'bootstrap-server.mjs');
-
-  if (!fs.existsSync(emittedEntry)) {
-    logger.warn(
-      `SSR: expected '${emittedEntry}' was not found; skipping federation server entry. ` +
-        `Federated remotes may fail to render server-side.`
-    );
-    return;
-  }
-
-  fs.renameSync(emittedEntry, bootstrapEntry);
-
-  // Preserve the source map (if any) and repoint its reference.
-  const emittedMap = `${emittedEntry}.map`;
-  if (fs.existsSync(emittedMap)) {
-    const bootstrapMap = `${bootstrapEntry}.map`;
-    fs.renameSync(emittedMap, bootstrapMap);
-    const bootstrapCode = fs
-      .readFileSync(bootstrapEntry, 'utf-8')
-      .replace(/sourceMappingURL=server\.mjs\.map/g, 'sourceMappingURL=bootstrap-server.mjs.map');
-    fs.writeFileSync(bootstrapEntry, bootstrapCode, 'utf-8');
-  }
-
-  fs.writeFileSync(emittedEntry, federationServerEntry, 'utf-8');
 }
 
 /**
