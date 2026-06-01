@@ -38,7 +38,6 @@ import {
   syncNfFileWatcher,
 } from '@softarc/native-federation/internal';
 import { type Plugin, type PluginBuild } from 'esbuild';
-import { generateDevHostInstancesEntry } from '../../tools/dev-host-instances-entry.js';
 import { devHostInstancesPlugin } from '../../plugin/dev-host-instances-plugin.js';
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
@@ -285,12 +284,18 @@ export async function* runBuilder(
     // (Vite never writes it to disk under `ng serve`).
     const devServerOrigin = getDevServerOrigin(serverOptions);
 
-    plugins.push(
-      devHostInstancesPlugin(
-        generateDevHostInstancesEntry({ relBrowserPath: browserOutputPath, devServerOrigin }),
-        path.join(cachePath, 'nf-dev-host-instances.mjs')
-      )
-    );
+    // The injected bridge (a real, compiled module — see the plugin) reads these
+    // at eval time. `process.env` is process-global, so it crosses the Vite SSR
+    // realm boundary that `globalThis` would not, and mirrors how prod's
+    // node-preload is configured.
+    process.env['NF_DEV_SSR_BROWSER_PATH'] = browserOutputPath;
+    if (devServerOrigin) {
+      process.env['NF_DEV_SSR_ORIGIN'] = devServerOrigin;
+    } else {
+      delete process.env['NF_DEV_SSR_ORIGIN'];
+    }
+
+    plugins.push(devHostInstancesPlugin());
   }
 
   // Initialize SSE reloader only for local development
