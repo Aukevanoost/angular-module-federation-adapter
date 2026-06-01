@@ -12,10 +12,7 @@ import {
   type CompilerPluginOptions,
 } from '@angular/build/private';
 
-import {
-  normalizeOptimization,
-  normalizeSourceMaps,
-} from '@angular-devkit/build-angular/src/utils/index.js';
+import { normalizeOptimization, normalizeSourceMaps } from './normalize-build-options.js';
 
 import { createAwaitableCompilerPlugin } from './create-awaitable-compiler-plugin.js';
 import type { NormalizedContextOptions } from './normalize-context-options.js';
