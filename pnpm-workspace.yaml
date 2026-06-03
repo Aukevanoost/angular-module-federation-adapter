@@ -14,3 +14,6 @@ lockfileIncludeTarballUrl: true
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - "@softarc/*"
+  - "@angular/*"
+  - "@angular-devkit/*"
+  - '@schematics/angular@22.0.0'

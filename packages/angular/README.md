@@ -173,7 +173,7 @@ A dynamic host reads the configuration data at runtime from a `.json` file.
 The host configuration (`projects/shell/federation.config.mjs`) looks like what you know from our Module Federation plugin:
 
 ```javascript
-import { withNativeFederation, shareAll } from '@angular-architects/native-federation-v4/config';
+import { withNativeFederation, shareAll } from '@angular-architects/native-federation/config';
 
 export default withNativeFederation({
   name: 'my-host',
@@ -202,7 +202,7 @@ export default withNativeFederation({
 Also, the remote configuration (`projects/mfe1/federation.config.mjs`) looks familiar:
 
 ```javascript
-import { withNativeFederation, shareAll } from '@angular-architects/native-federation-v4/config';
+import { withNativeFederation, shareAll } from '@angular-architects/native-federation/config';
 
 export default withNativeFederation({
   name: 'mfe1',
@@ -462,7 +462,7 @@ Native Federation v4 allows you to inject custom esbuild plugins into the build 
 Create `custom-builder.js`:
 
 ```js
-import { runBuilder } from '@angular-architects/native-federation-v4';
+import { runBuilder } from '@angular-architects/native-federation';
 import { createBuilder } from '@angular-devkit/architect';
 
 async function* customBuilder(options, context) {

@@ -27,7 +27,7 @@ This package was successfully tested with Angular CLI projects and with Nx proje
 
 ## Versions
 
-We will at least provide a new version of this package per Angular major. If necessary, we will also provide packages to adapt to Angular minors. To make the relationship between Angular versions and versions of this package easy for all of us, **we follow Angular's version numbers**. E. g., `@angular-architects/native-federation-v4` 16.1 is intended for Angular 16.1 and upwards.
+We will at least provide a new version of this package per Angular major. If necessary, we will also provide packages to adapt to Angular minors. To make the relationship between Angular versions and versions of this package easy for all of us, **we follow Angular's version numbers**. E. g., `@angular-architects/native-federation` 16.1 is intended for Angular 16.1 and upwards.
 
 - Use version 16.1.x for Angular 16.1.x
 - Use version 16.2.x for Angular 16.2.x
@@ -39,7 +39,10 @@ We will at least provide a new version of this package per Angular major. If nec
 - Use version 19.x for Angular 19.x
 - Use version 20.0.x for Angular 20.0.x
 - Use version 20.1.x for Angular 20.1.x
-- Use version 21.x for Angular 21.x
+- Use version 21.0.x for Angular 21.0.x
+- Use version 21.1.x for Angular 21.1.x
+- Use version 21.2.x for Angular 21.2.x
+- Use version 22.0.x for Angular 22.0.x
 
 ## Demo Repo
 
@@ -176,7 +179,7 @@ A dynamic host reads the configuration data at runtime from a `.json` file.
 The host configuration (`projects/shell/federation.config.mjs`) looks like what you know from our Module Federation plugin:
 
 ```javascript
-import { withNativeFederation, shareAll } from '@angular-architects/native-federation-v4/config';
+import { withNativeFederation, shareAll } from '@angular-architects/native-federation/config';
 
 export default withNativeFederation({
   name: 'my-host',
@@ -205,7 +208,7 @@ export default withNativeFederation({
 Also, the remote configuration (`projects/mfe1/federation.config.mjs`) looks familiar:
 
 ```javascript
-import { withNativeFederation, shareAll } from '@angular-architects/native-federation-v4/config';
+import { withNativeFederation, shareAll } from '@angular-architects/native-federation/config';
 
 export default withNativeFederation({
   name: 'mfe1',
@@ -542,7 +545,7 @@ Native Federation v4 allows you to inject custom esbuild plugins into the build 
 Create `custom-builder.js`:
 
 ```js
-import { runBuilder } from '@angular-architects/native-federation-v4/internal';
+import { runBuilder } from '@angular-architects/native-federation/internal';
 import { createBuilder } from '@angular-devkit/architect';
 
 async function* customBuilder(options, context) {
