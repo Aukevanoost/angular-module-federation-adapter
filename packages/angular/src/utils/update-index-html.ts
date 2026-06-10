@@ -34,17 +34,21 @@ export function updateScriptTags(indexContent: string, nfOptions: NfBuilderSchem
     ...nfOptions.esmsInitOptions,
   };
 
-  const htmlFragment = `
-<script type="esms-options">${JSON.stringify(esmsOptions)}</script>
-`;
+  const htmlFragment = `<script type="esms-options">${JSON.stringify(esmsOptions)}</script>`;
 
   indexContent = indexContent.replace(
-    /<script\s+src="([^"]*polyfills[^"]*)"[^>]*><\/script>/,
-    '<script type="module" src="$1"></script>'
+    /<script\b(?=[^>]*\bsrc="[^"]*polyfills[^"]*")[^>]*>/,
+    tag =>
+      /\btype\s*=/.test(tag)
+        ? tag.replace(/\btype\s*=\s*"[^"]*"/, 'type="module"')
+        : tag.replace(/<script\b/, '<script type="module"')
   );
   indexContent = indexContent.replace(
-    /<script\s+src="([^"]*main[^"]*)"[^>]*><\/script>/,
-    '<script type="module-shim" src="$1"></script>'
+    /<script\b(?=[^>]*\bsrc="[^"]*main[^"]*")[^>]*>/,
+    tag =>
+      /\btype\s*=/.test(tag)
+        ? tag.replace(/\btype\s*=\s*"[^"]*"/, 'type="module-shim"')
+        : tag.replace(/<script\b/, '<script type="module-shim"')
   );
 
   indexContent = indexContent.replace(/(<body.*?>)/, `$1\n\t\t${htmlFragment}`);
