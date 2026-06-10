@@ -529,9 +529,6 @@ export async function* runBuilder(
     if (isLocalDevelopment) {
       federationBuildNotifier.stopEventServer();
     }
-    // ref: https://github.com/angular/angular-cli/issues/33201
-    // becomes a no-op once Angular fixes the leak upstream.
-    setTimeout(() => process.exit(ngBuildStatus.success ? 0 : 1), 100).unref();
   }
 
   yield ngBuildStatus;
@@ -560,7 +557,9 @@ function getDevServerOrigin(
   }
   const protocol = serverOptions.ssl ? 'https' : 'http';
   const host = serverOptions.host || 'localhost';
-  return serverOptions.port ? `${protocol}://${host}:${serverOptions.port}` : `${protocol}://${host}`;
+  return serverOptions.port
+    ? `${protocol}://${host}:${serverOptions.port}`
+    : `${protocol}://${host}`;
 }
 
 function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: boolean) {
