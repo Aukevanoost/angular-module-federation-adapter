@@ -8,6 +8,12 @@ The goal of this small guide is to show the major differences between the previo
 > ```bash
 > ng update @angular-architects/native-federation
 > ```
+>
+> Already updated to the newest version? Just run the schematics!
+>
+> ```bash
+> ng update @angular-architects/native-federation --migrate-only update22
+> ```
 
 The migration involves changing 4 files:
 
@@ -42,17 +48,15 @@ The first step is to update the `package.json` to install the new packages:
 {
   "name": "mfe-test",
   "version": "1.2.3",
-  "type": "module", //  <-- (Optional) NF is fully ESM now.
   "scripts": {
     "ng": "ng"
   },
   "private": true,
   "dependencies": {
-    // [...] Dependencies
-    "@softarc/native-federation-runtime": "~4.1.0" // optional, if you want to keep using the classic runtime
+    // [...] Your dependencies
   },
   "devDependencies": {
-    "@angular-architects/native-federation": "~22.0.0", // The Angular 22 major, published under the original package name again
+    "@angular-architects/native-federation": "~22.0.0",
     "@softarc/native-federation": "~4.1.0",
     "@softarc/native-federation-orchestrator": "^4.2.2"
   }
@@ -163,7 +167,6 @@ In the new version we're moving to an opt-in setup where the user (you) can cust
       "prefix": "app",
       "architect": {
         "serve": {
-          // The builder name is unchanged from v3 — just make sure it's set (for "serve" and "build")
           "builder": "@angular-architects/native-federation:build",
           "options": {
             "target": "mfe1:serve-original:development",
@@ -186,7 +189,7 @@ And that's it! Your micro frontend is migrated to the new major! We do have some
 
 ## Optional: using the orchestrator instead
 
-Here's the `projects/<your-project>/src/main.ts` you've been used to for the last couple of years (before v4):
+Here's the `projects/<your-project>/src/main.ts` you've been used to for the last couple of years (before v4). It now automatically bootstraps the new orchestrator:
 
 ```javascript
 import { initFederation } from '@angular-architects/native-federation';
@@ -197,7 +200,7 @@ initFederation()
   .catch(err => console.error(err));
 ```
 
-We're changing that to the code you're _actually_ using:
+However, some projects still use the "legacy runtime" that did the job. But it lacks some modern features like dependency sharing based on a range, shareScopes, in-browser caching etc etc.
 
 ```javascript
 import { initFederation } from '@softarc/native-federation-runtime'; // Default native-federation runtime
@@ -208,7 +211,7 @@ initFederation()
   .catch(err => console.error(err));
 ```
 
-The runtime you see here is the "legacy runtime" that did the job. But it lacks some modern features like dependency sharing based on a range, shareScopes, in-browser caching etc etc. That's why from now on we recommend the orchestrator!
+For optimal performance, from now on we recommend using the orchestrator directly:
 
 ```javascript
 import { initFederation, NativeFederationResult } from '@softarc/native-federation-orchestrator';

@@ -2,8 +2,8 @@
 
 Native Federation is a "browser-native" implementation of the successful mental model behind webpack Module Federation for building Micro Frontends (Plugins, etc.).
 
-> [!WARNING]
-> This is our v4 version which is currently in beta and contains breaking changes. For upgrading from v3 to v4, please refer to our [Migration Guide](./MIGRATION_GUIDE.md).
+> [!TIP]
+> Starting at Angular version 22, we're migrating to a small rework we call the v4 upgrade. Coming from an older version of native-federation? Check out our [migration guide](./MIGRATION_GUIDE.md). You can find the older native-federation codebase [here](https://github.com/angular-architects/module-federation-plugin/).
 
 ## Features 🔥
 
@@ -43,6 +43,14 @@ We will at least provide a new version of this package per Angular major. If nec
 - Use version 21.1.x for Angular 21.1.x
 - Use version 21.2.x for Angular 21.2.x
 - Use version 22.0.x for Angular 22.0.x
+
+## Want to try v4 on an older angular version?
+
+We have a "bridge" package that provides a backport to Angular 21 and 20. Try it here!
+
+```bash
+npm install @angular-architects/native-federation-v4
+```
 
 ## Demo Repo
 
