@@ -42,6 +42,7 @@ import {
 import { type Plugin, type PluginBuild } from 'esbuild';
 import { devHostInstancesPlugin } from '../../plugin/dev-host-instances-plugin.js';
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
+import { resolveInstrumentationFilter } from '../../utils/coverage-instrumentation.js';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
 import { updateScriptTags } from '../../utils/update-index-html.js';
 import { checkForInvalidImports } from './../../utils/check-for-invalid-imports.js';
@@ -69,7 +70,7 @@ process.stderr.write = function (
 };
 
 const createInternalAngularBuilder =
-  (externals: string[]) =>
+  (externals: string[], opts?: { instrumentForCoverage?: (request: string) => boolean }) =>
   (
     options: Parameters<typeof buildApplicationInternal>[0],
     context: BuilderContext,
@@ -89,6 +90,10 @@ const createInternalAngularBuilder =
     // Angular routes them to optimizeDeps.exclude, preventing Vite from trying to
     // pre-bundle packages that include native .node binaries.
     options.externalDependencies = [...(options.externalDependencies ?? []), ...externals];
+
+    if (opts?.instrumentForCoverage) {
+      options.instrumentForCoverage = opts.instrumentForCoverage;
+    }
 
     // Todo: share cache with Angular builder: https://github.com/angular/angular-cli/pull/32527
     // options.codeBundleCache = nfOptions.federationCache.bundlerCache;
@@ -390,13 +395,18 @@ export async function* runBuilder(
 
   ngBuilderOptions.deleteOutputPath = false;
 
+  const instrumentForCoverage = await resolveInstrumentationFilter(context, {
+    instrumentForCoverage: nfBuilderOptions.instrumentForCoverage,
+    codeCoverageExclude: nfBuilderOptions.codeCoverageExclude,
+  });
+
   const appBuilderName = '@angular/build:application';
 
   const builderRun = runViteServer
     ? serveWithVite(
         serverOptions as unknown as Parameters<typeof serveWithVite>[0],
         appBuilderName,
-        createInternalAngularBuilder(externals),
+        createInternalAngularBuilder(externals, { instrumentForCoverage }),
         context,
         nfBuilderOptions.skipHtmlTransform
           ? {}
@@ -406,10 +416,17 @@ export async function* runBuilder(
           middleware,
         }
       )
-    : buildApplication(ngBuilderOptions, context, {
-        codePlugins: plugins,
-        indexHtmlTransformer: transformIndexHtml(nfBuilderOptions),
-      });
+    : buildApplication(
+        {
+          ...ngBuilderOptions,
+          ...(instrumentForCoverage ? { instrumentForCoverage } : {}),
+        } as typeof ngBuilderOptions,
+        context,
+        {
+          codePlugins: plugins,
+          indexHtmlTransformer: transformIndexHtml(nfBuilderOptions),
+        }
+      );
 
   const rebuildQueue = new RebuildQueue();
 

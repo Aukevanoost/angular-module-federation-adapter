@@ -16,6 +16,8 @@ export interface NfBuilderSchema extends JsonObject {
   outputPath?: string;
   projectName?: string;
   ssr: boolean;
+  instrumentForCoverage?: boolean;
+  codeCoverageExclude?: string[];
   tsConfig?: string;
   devServer?: boolean;
   entryPoints?: string[];
