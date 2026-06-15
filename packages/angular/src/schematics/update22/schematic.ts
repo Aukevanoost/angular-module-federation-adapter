@@ -1,5 +1,9 @@
 import type { Rule, Tree } from '@angular-devkit/schematics';
 
+import {
+  DEFAULT_NF_CONFIG_FILE_NAME,
+  LEGACY_NF_CONFIG_FILE_NAME,
+} from '../../config/constants.js';
 import { getWorkspaceFileName } from '../init/schematic.js';
 
 import * as path from 'path';
@@ -60,8 +64,8 @@ function normalizeBuilderReferences(tree: Tree, workspace: any, workspaceFileNam
 // only get their package references normalized.
 function migrateFederationConfigs(tree: Tree, workspace: any): void {
   for (const { projectRoot } of resolveProjects(workspace)) {
-    const jsConfigPath = path.join(projectRoot, 'federation.config.js');
-    const mjsConfigPath = path.join(projectRoot, 'federation.config.mjs');
+    const jsConfigPath = path.join(projectRoot, LEGACY_NF_CONFIG_FILE_NAME);
+    const mjsConfigPath = path.join(projectRoot, DEFAULT_NF_CONFIG_FILE_NAME);
 
     if (!tree.exists(jsConfigPath) && tree.exists(mjsConfigPath)) {
       const content = tree.readText(mjsConfigPath);

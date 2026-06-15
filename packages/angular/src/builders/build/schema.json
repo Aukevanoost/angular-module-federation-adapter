@@ -84,7 +84,7 @@
         }
       }
     },
-    "federationConfigFilePath": {
+    "federationConfigPath": {
       "type": "string",
       "description": "The path to the federation config file. If not provided, the default path will be used.",
       "default": "federation.config.mjs"
