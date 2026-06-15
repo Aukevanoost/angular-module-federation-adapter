@@ -83,6 +83,11 @@
           "description": "You can override the default endpoint to send build completion events to."
         }
       }
+    },
+    "federationConfigFilePath": {
+      "type": "string",
+      "description": "The path to the federation config file. If not provided, the default path will be used.",
+      "default": "federation.config.mjs"
     }
   }
 }
