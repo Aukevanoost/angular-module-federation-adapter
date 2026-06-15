@@ -70,30 +70,30 @@ process.stderr.write = function (
 
 const createInternalAngularBuilder =
   (externals: string[]) =>
-    (
-      options: Parameters<typeof buildApplicationInternal>[0],
-      context: BuilderContext,
-      pluginsOrExtensions?: Plugin[] | Parameters<typeof buildApplicationInternal>[2]
-    ) => {
-      let extensions: Parameters<typeof buildApplicationInternal>[2];
-      if (pluginsOrExtensions && Array.isArray(pluginsOrExtensions)) {
-        extensions = {
-          codePlugins: pluginsOrExtensions,
-        };
-      } else {
-        extensions = pluginsOrExtensions as Parameters<typeof buildApplicationInternal>[2];
-      }
+  (
+    options: Parameters<typeof buildApplicationInternal>[0],
+    context: BuilderContext,
+    pluginsOrExtensions?: Plugin[] | Parameters<typeof buildApplicationInternal>[2]
+  ) => {
+    let extensions: Parameters<typeof buildApplicationInternal>[2];
+    if (pluginsOrExtensions && Array.isArray(pluginsOrExtensions)) {
+      extensions = {
+        codePlugins: pluginsOrExtensions,
+      };
+    } else {
+      extensions = pluginsOrExtensions as Parameters<typeof buildApplicationInternal>[2];
+    }
 
-      // serveWithVite fetches its own browserOptions independently, so ngBuilderOptions
-      // modifications don't reach here. Add NF externals to externalDependencies so
-      // Angular routes them to optimizeDeps.exclude, preventing Vite from trying to
-      // pre-bundle packages that include native .node binaries.
-      options.externalDependencies = [...(options.externalDependencies ?? []), ...externals];
+    // serveWithVite fetches its own browserOptions independently, so ngBuilderOptions
+    // modifications don't reach here. Add NF externals to externalDependencies so
+    // Angular routes them to optimizeDeps.exclude, preventing Vite from trying to
+    // pre-bundle packages that include native .node binaries.
+    options.externalDependencies = [...(options.externalDependencies ?? []), ...externals];
 
-      // Todo: share cache with Angular builder: https://github.com/angular/angular-cli/pull/32527
-      // options.codeBundleCache = nfOptions.federationCache.bundlerCache;
-      return buildApplicationInternal(options, context, extensions);
-    };
+    // Todo: share cache with Angular builder: https://github.com/angular/angular-cli/pull/32527
+    // options.codeBundleCache = nfOptions.federationCache.bundlerCache;
+    return buildApplicationInternal(options, context, extensions);
+  };
 
 export async function* runBuilder(
   nfBuilderOptions: NfBuilderSchema & NfInternalOptions,
@@ -138,9 +138,9 @@ export async function* runBuilder(
   let ngBuilderOptions = (await context.validateOptions(
     runViteServer
       ? ({
-        ...targetOptions,
-        port: nfBuilderOptions.port || targetOptions['port'],
-      } as JsonObject)
+          ...targetOptions,
+          port: nfBuilderOptions.port || targetOptions['port'],
+        } as JsonObject)
       : targetOptions,
     builder
   )) as JsonObject & ApplicationBuilderOptions;
@@ -308,10 +308,10 @@ export async function* runBuilder(
   const middleware = [
     ...(isLocalDevelopment
       ? [
-        federationBuildNotifier.createEventMiddleware(req =>
-          removeBaseHref(req, ngBuilderOptions.baseHref)
-        ),
-      ]
+          federationBuildNotifier.createEventMiddleware(req =>
+            removeBaseHref(req, ngBuilderOptions.baseHref)
+          ),
+        ]
       : []),
 
     (
@@ -394,22 +394,22 @@ export async function* runBuilder(
 
   const builderRun = runViteServer
     ? serveWithVite(
-      serverOptions as unknown as Parameters<typeof serveWithVite>[0],
-      appBuilderName,
-      createInternalAngularBuilder(externals),
-      context,
-      nfBuilderOptions.skipHtmlTransform
-        ? {}
-        : { indexHtml: transformIndexHtml(nfBuilderOptions) },
-      {
-        buildPlugins: plugins,
-        middleware,
-      }
-    )
+        serverOptions as unknown as Parameters<typeof serveWithVite>[0],
+        appBuilderName,
+        createInternalAngularBuilder(externals),
+        context,
+        nfBuilderOptions.skipHtmlTransform
+          ? {}
+          : { indexHtml: transformIndexHtml(nfBuilderOptions) },
+        {
+          buildPlugins: plugins,
+          middleware,
+        }
+      )
     : buildApplication(ngBuilderOptions, context, {
-      codePlugins: plugins,
-      indexHtmlTransformer: transformIndexHtml(nfBuilderOptions),
-    });
+        codePlugins: plugins,
+        indexHtmlTransformer: transformIndexHtml(nfBuilderOptions),
+      });
 
   const rebuildQueue = new RebuildQueue();
 
