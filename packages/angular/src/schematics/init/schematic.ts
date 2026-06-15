@@ -1,4 +1,5 @@
 import { chain, noop, type Rule, url } from '@angular-devkit/schematics';
+import { DEFAULT_NF_CONFIG_FILE_NAME } from '../../config/constants.js';
 import type { NfSchematicSchema } from './schema.js';
 import * as path from 'path';
 
@@ -46,7 +47,7 @@ export default function config(options: NfSchematicSchema): Rule {
       tree.create(manifestPath, JSON.stringify(remoteMap, null, '\t'));
     }
 
-    const federationConfigPath = path.join(projectRoot, 'federation.config.mjs');
+    const federationConfigPath = path.join(projectRoot, DEFAULT_NF_CONFIG_FILE_NAME);
 
     const exists = tree.exists(federationConfigPath);
 

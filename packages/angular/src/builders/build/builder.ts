@@ -1,5 +1,10 @@
 import './setup-builder-env-variables.js';
 
+import {
+  DEFAULT_NF_CONFIG_FILE_NAME,
+  LEGACY_NF_CONFIG_FILE_NAME,
+} from '../../config/constants.js';
+
 import * as fs from 'fs';
 import * as mrmime from 'mrmime';
 import * as path from 'path';
@@ -236,7 +241,7 @@ export async function* runBuilder(
       projectName: nfBuilderOptions.projectName,
       workspaceRoot: context.workspaceRoot,
       outputPath: browserOutputPath,
-      federationConfig: inferConfigPath(federationTsConfig, context.workspaceRoot),
+      federationConfig: inferConfigPath(federationTsConfig, context.workspaceRoot, nfBuilderOptions.federationConfigPath),
       tsConfig: federationTsConfig,
       verbose: ngBuilderOptions.verbose,
       watch: ngBuilderOptions.watch,
@@ -575,15 +580,20 @@ function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: bool
   return localize;
 }
 
-function inferConfigPath(tsConfig: string, workspaceRoot: string): string {
+function inferConfigPath(
+  tsConfig: string,
+  workspaceRoot: string,
+  federationConfigPath = DEFAULT_NF_CONFIG_FILE_NAME
+): string {
   const relProjectPath = path.dirname(tsConfig);
-  const mjsRelPath = path.join(relProjectPath, 'federation.config.mjs');
+
+  const mjsRelPath = path.join(relProjectPath, federationConfigPath);
 
   if (fs.existsSync(path.resolve(workspaceRoot, mjsRelPath))) {
     return mjsRelPath;
   }
 
-  return path.join(relProjectPath, 'federation.config.js');
+  return path.join(relProjectPath, LEGACY_NF_CONFIG_FILE_NAME);
 }
 
 function transformIndexHtml(nfOptions: NfBuilderSchema): (content: string) => Promise<string> {
