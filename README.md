@@ -475,6 +475,17 @@ This option was introduced with version 19.0.14.
 
 Native Federation provides automatic shell reloading when remote Micro Frontends finish rebuilding during development. This feature eliminates manual page refreshes and significantly improves the development experience when working with multiple applications simultaneously.
 
+Pass `{ sse: true }` to `initFederation` to enable it:
+
+```typescript
+import { initFederation } from '@angular-architects/native-federation';
+
+initFederation('/assets/federation.manifest.json', { sse: true })
+  .catch(err => console.error(err))
+  .then(_ => import('./bootstrap'))
+  .catch(err => console.error(err));
+```
+
 For complete implementation details, configuration options, please refer to the article:
 
 **📖 [Fixing DX Friction: Automatic Shell Reloading in Native Federation](https://www.angulararchitects.io/en/blog/fixing-dx-friction-automatic-shell-reloading-in-native-federation/)**
