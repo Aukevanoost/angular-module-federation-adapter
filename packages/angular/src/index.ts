@@ -40,6 +40,7 @@ export type LoadRemoteModuleOptions<T = any> = {
 export interface InitFederationOptions {
   cacheTag?: string;
   logging?: LogType;
+  sse?: boolean;
 }
 
 let resolveFirstInit!: (
@@ -64,6 +65,7 @@ export function initFederation(
     storage: globalThisStorageEntry,
     hostRemoteEntry: { url: './remoteEntry.json', cacheTag: options?.cacheTag },
     logLevel: options?.logging ?? 'debug',
+    sse: options?.sse,
   });
   if (!firstInitCaptured) {
     firstInitCaptured = true;
