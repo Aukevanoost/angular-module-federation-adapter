@@ -5,7 +5,7 @@ const ALLOWED_FILE_EXTENSIONS = new Set(['mjs', 'js', 'mts', 'ts', 'jsx', 'tsx',
 export function checkForInvalidImports(importList: string[], type: string) {
   const importsWithDot = [];
   for (const mappingImport of importList) {
-    if (mappingImport.indexOf('.') < 0) {
+    if (!mappingImport.includes('.')) {
       continue;
     }
 
@@ -13,14 +13,14 @@ export function checkForInvalidImports(importList: string[], type: string) {
     const sanitizedImport = queryIndex >= 0 ? mappingImport.slice(0, queryIndex) : mappingImport;
 
     const segmentStart = sanitizedImport.lastIndexOf('/') + 1;
-    const dotIndex = sanitizedImport.lastIndexOf('.');
+    const lastSegment = sanitizedImport.slice(segmentStart);
+    const dotIndex = lastSegment.lastIndexOf('.');
 
-    if (dotIndex < segmentStart) {
-      importsWithDot.push(mappingImport);
+    if (dotIndex < 0) {
       continue;
     }
 
-    const extension = sanitizedImport.slice(dotIndex + 1);
+    const extension = lastSegment.slice(dotIndex + 1);
     if (!ALLOWED_FILE_EXTENSIONS.has(extension)) {
       importsWithDot.push(mappingImport);
     }
