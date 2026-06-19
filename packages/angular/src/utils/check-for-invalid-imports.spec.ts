@@ -40,7 +40,7 @@ describe('checkForInvalidImports', () => {
   });
 
   it('throws for invalid dot imports and logs warnings', () => {
-    const imports = ['lodash.merge', '@scope/lib.v2', './feature'];
+    const imports = ['lodash.merge', '@scope/lib.v2'];
 
     expect(() => checkForInvalidImports(imports, 'shared mappings')).toThrow(
       "Invalid 'shared mappings' config. Invalid imports paths detected, consider using a barrel import instead. "
@@ -54,7 +54,6 @@ describe('checkForInvalidImports', () => {
       2,
       "Import '@scope/lib.v2' contains a bad dot (.) import."
     );
-    expect(warnSpy).toHaveBeenNthCalledWith(3, "Import './feature' contains a bad dot (.) import.");
     expect(debugSpy).toHaveBeenCalledWith(
       'Bad import issue: https://github.com/vitejs/vite/issues/21036'
     );

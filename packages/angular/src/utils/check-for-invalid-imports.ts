@@ -17,9 +17,6 @@ export function checkForInvalidImports(importList: string[], type: string) {
     const dotIndex = lastSegment.lastIndexOf('.');
 
     if (dotIndex < 0) {
-      if (sanitizedImport.startsWith('./') || sanitizedImport.startsWith('../')) {
-        importsWithDot.push(mappingImport);
-      }
       continue;
     }
 
