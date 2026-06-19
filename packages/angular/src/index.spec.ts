@@ -37,7 +37,7 @@ describe('initFederation', () => {
 
     initFederation({}, { sse: true });
 
-    const options = mockInitFederation.mock.calls[0][1];
+    const options = mockInitFederation.mock.calls[0]![1];
     expect(options.sse).toBe(true);
   });
 
@@ -48,7 +48,7 @@ describe('initFederation', () => {
 
     initFederation({}, { sse: false });
 
-    const options = mockInitFederation.mock.calls[0][1];
+    const options = mockInitFederation.mock.calls[0]![1];
     expect(options.sse).toBe(false);
   });
 
@@ -59,7 +59,7 @@ describe('initFederation', () => {
 
     initFederation({}, {});
 
-    const options = mockInitFederation.mock.calls[0][1];
+    const options = mockInitFederation.mock.calls[0]![1];
     expect(options.sse).toBeUndefined();
   });
 
@@ -70,7 +70,7 @@ describe('initFederation', () => {
 
     initFederation({});
 
-    const options = mockInitFederation.mock.calls[0][1];
+    const options = mockInitFederation.mock.calls[0]![1];
     expect(options.sse).toBeUndefined();
   });
 });
