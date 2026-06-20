@@ -9,7 +9,8 @@ export interface NfBuilderSchema extends JsonObject {
   port: number;
   rebuildDelay: number;
   buildNotifications?: BuildNotificationOptions;
-  watch: boolean;
+  federationConfigPath?: string;
+  watch?: boolean;
   skipHtmlTransform: boolean;
   esmsInitOptions: ESMSInitOptions;
   baseHref?: string;
@@ -22,4 +23,4 @@ export interface NfBuilderSchema extends JsonObject {
   cacheExternalArtifacts?: boolean;
 }
 
-export type NfInternalOptions = { plugins: Plugin[] };
+export type NfInternalOptions = { plugins?: Plugin[] };

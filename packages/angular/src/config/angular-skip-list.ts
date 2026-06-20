@@ -3,6 +3,8 @@ import { type SkipList, DEFAULT_SKIP_LIST } from '@softarc/native-federation/con
 export const NG_SKIP_LIST: SkipList = [
   ...DEFAULT_SKIP_LIST,
   '@angular-architects/native-federation',
+  '@angular-architects/native-federation/config',
+  '@angular-architects/native-federation/internal',
   'zone.js',
   '@angular/localize',
   '@angular/localize/init',

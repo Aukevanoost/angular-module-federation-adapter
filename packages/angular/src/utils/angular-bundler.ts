@@ -12,10 +12,7 @@ import {
   type CompilerPluginOptions,
 } from '@angular/build/private';
 
-import {
-  normalizeOptimization,
-  normalizeSourceMaps,
-} from '@angular-devkit/build-angular/src/utils/index.js';
+import { normalizeOptimization, normalizeSourceMaps } from './normalize-build-options.js';
 
 import { createAwaitableCompilerPlugin } from './create-awaitable-compiler-plugin.js';
 import type { NormalizedContextOptions } from './normalize-context-options.js';
@@ -135,6 +132,10 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     stylesheetBundlerOptions
   );
 
+  const customPlugins = Array.isArray(options.builderOptions.plugins)
+    ? options.builderOptions.plugins
+    : [];
+
   const config: esbuild.BuildOptions = {
     entryPoints: entryPoints.map(ep => ({
       in: ep.fileName,
@@ -157,9 +158,9 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     format: 'esm',
     target: target,
     logLimit: 0,
-    plugins: [compilerPlugin, commonjsPlugin()],
+    plugins: [compilerPlugin, commonjsPlugin(), ...customPlugins],
     define: {
-      ngDevMode: dev ? 'true' : 'false',
+      ...(dev ? {} : { ngDevMode: 'false' }),
       ngJitMode: 'false',
     },
     ...(builderOptions.loader ? { loader: builderOptions.loader } : {}),

@@ -1,11 +1,21 @@
 import './setup-builder-env-variables.js';
 
+import {
+  DEFAULT_NF_CONFIG_FILE_NAME,
+  LEGACY_NF_CONFIG_FILE_NAME,
+} from '../../config/constants.js';
+
 import * as fs from 'fs';
 import * as mrmime from 'mrmime';
 import * as path from 'path';
 
 import { type ApplicationBuilderOptions, buildApplication } from '@angular/build';
-import { buildApplicationInternal, serveWithVite, SourceFileCache } from '@angular/build/private';
+import {
+  buildApplicationInternal,
+  normalizeDevServerOptions,
+  serveWithVite,
+  SourceFileCache,
+} from '@angular/build/private';
 
 import {
   type BuilderContext,
@@ -14,39 +24,34 @@ import {
   targetFromTargetString,
 } from '@angular-devkit/architect';
 
-import { normalizeOptions } from '@angular-devkit/build-angular/src/builders/dev-server/options.js';
-import type { Schema as DevServerSchema } from '@angular-devkit/build-angular/src/builders/dev-server/schema.js';
-
+import { type JsonObject } from '@angular-devkit/core';
 import {
   buildForFederation,
-  rebuildForFederation,
+  createFederationCache,
   type FederationInfo,
-  type NormalizedFederationOptions,
   getExternals,
   normalizeFederationOptions,
+  rebuildForFederation,
   setBuildAdapter,
-  createFederationCache,
 } from '@softarc/native-federation';
 import {
-  logger,
-  setLogLevel,
-  RebuildQueue,
   AbortedError,
-  getDefaultCachePath,
-  type NfFileWatcher,
-  syncNfFileWatcher,
   createNfWatcher,
+  getDefaultCachePath,
+  logger,
+  type NfFileWatcher,
+  RebuildQueue,
+  setLogLevel,
+  syncNfFileWatcher,
 } from '@softarc/native-federation/internal';
-import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
-import { type JsonObject } from '@angular-devkit/core';
-import { existsSync, mkdirSync, rmSync } from 'fs';
-import { fstart } from '../../tools/fstart-as-data-url.js';
 import { type Plugin, type PluginBuild } from 'esbuild';
+import { devHostInstancesPlugin } from '../../plugin/dev-host-instances-plugin.js';
+import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
 import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
 import { updateScriptTags } from '../../utils/update-index-html.js';
+import { checkForInvalidImports } from './../../utils/check-for-invalid-imports.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
 import type { NfBuilderSchema, NfInternalOptions } from './schema.js';
-import { checkForInvalidImports } from './../../utils/check-for-invalid-imports.js';
 
 const originalWrite = process.stderr.write.bind(process.stderr);
 
@@ -130,13 +135,13 @@ export async function* runBuilder(
   /**
    * Explicitly defined as devServer or if the target contains "serve"
    */
-  const runServer =
+  const runViteServer =
     typeof nfBuilderOptions.devServer !== 'undefined'
       ? !!nfBuilderOptions.devServer
       : target.target.includes('serve');
 
   let ngBuilderOptions = (await context.validateOptions(
-    runServer
+    runViteServer
       ? ({
           ...targetOptions,
           port: nfBuilderOptions.port || targetOptions['port'],
@@ -147,13 +152,14 @@ export async function* runBuilder(
 
   let serverOptions = null;
 
-  const watch = nfBuilderOptions.watch;
+  const watch = nfBuilderOptions.watch ?? ngBuilderOptions.watch ?? runViteServer;
+  ngBuilderOptions.watch = watch;
 
   if (ngBuilderOptions['buildTarget']) {
-    serverOptions = await normalizeOptions(
+    serverOptions = await normalizeDevServerOptions(
       context,
       context.target!.project,
-      ngBuilderOptions as unknown as DevServerSchema
+      ngBuilderOptions as unknown as Parameters<typeof normalizeDevServerOptions>[2]
     );
 
     target = targetFromTargetString(ngBuilderOptions['buildTarget'] as string);
@@ -164,8 +170,6 @@ export async function* runBuilder(
     ngBuilderOptions = (await context.validateOptions(targetOptions, builder)) as JsonObject &
       ApplicationBuilderOptions;
   }
-
-  ngBuilderOptions.watch = watch;
 
   if (nfBuilderOptions.baseHref) {
     ngBuilderOptions.baseHref = nfBuilderOptions.baseHref;
@@ -180,7 +184,13 @@ export async function* runBuilder(
       ? nfBuilderOptions.tsConfig
       : ngBuilderOptions.tsConfig;
 
-  const adapter = createAngularBuildAdapter(ngBuilderOptions, context);
+  const adapter = createAngularBuildAdapter(
+    {
+      ...ngBuilderOptions,
+      plugins: nfBuilderOptions.plugins,
+    },
+    context
+  );
 
   setBuildAdapter(adapter);
 
@@ -201,7 +211,7 @@ export async function* runBuilder(
 
   const i18n = await getI18nConfig(context);
 
-  const localeFilter = getLocaleFilter(ngBuilderOptions, runServer);
+  const localeFilter = getLocaleFilter(ngBuilderOptions, runViteServer);
 
   const sourceLocaleSegment =
     typeof i18n?.sourceLocale === 'string'
@@ -231,7 +241,7 @@ export async function* runBuilder(
       projectName: nfBuilderOptions.projectName,
       workspaceRoot: context.workspaceRoot,
       outputPath: browserOutputPath,
-      federationConfig: inferConfigPath(federationTsConfig, context.workspaceRoot),
+      federationConfig: inferConfigPath(federationTsConfig, context.workspaceRoot, nfBuilderOptions.federationConfigPath),
       tsConfig: federationTsConfig,
       verbose: ngBuilderOptions.verbose,
       watch: ngBuilderOptions.watch,
@@ -270,7 +280,30 @@ export async function* runBuilder(
     ngBuilderOptions.externalDependencies = externals;
   }
 
-  const isLocalDevelopment = runServer && nfBuilderOptions.dev;
+  const isLocalDevelopment = runViteServer && nfBuilderOptions.dev;
+
+  // Dev SSR: inject a bootstrap that inits federation and bridges the host's
+  // singletons to remotes. The plugin self-gates on platform === 'node', so
+  // it's a no-op for CSR dev servers. (Prod SSR registers the loader at launch
+  // via the `node --import .../node-preload` preload — see src/node-preload.ts.)
+  if (isLocalDevelopment) {
+    // The bridge fetches the manifest over HTTP from the dev server's origin
+    // (Vite never writes it to disk under `ng serve`).
+    const devServerOrigin = getDevServerOrigin(serverOptions);
+
+    // The injected bridge (a real, compiled module — see the plugin) reads these
+    // at eval time. `process.env` is process-global, so it crosses the Vite SSR
+    // realm boundary that `globalThis` would not, and mirrors how prod's
+    // node-preload is configured.
+    process.env['NF_DEV_SSR_BROWSER_PATH'] = browserOutputPath;
+    if (devServerOrigin) {
+      process.env['NF_DEV_SSR_ORIGIN'] = devServerOrigin;
+    } else {
+      delete process.env['NF_DEV_SSR_ORIGIN'];
+    }
+
+    plugins.push(devHostInstancesPlugin());
+  }
 
   // Initialize SSE reloader only for local development
   if (isLocalDevelopment && nfBuilderOptions.buildNotifications?.enable) {
@@ -294,7 +327,9 @@ export async function* runBuilder(
       },
       next: () => void
     ) => {
-      const url = removeBaseHref(req, ngBuilderOptions.baseHref);
+      const rawUrl = removeBaseHref(req, ngBuilderOptions.baseHref);
+
+      const url = new URL(rawUrl || '/', 'http://localhost').pathname;
 
       const fileName = path.join(normalized.options.workspaceRoot, devServerOutputPath, url);
 
@@ -324,19 +359,18 @@ export async function* runBuilder(
 
   let first = true;
 
-  const nfWatcher: NfFileWatcher | undefined =
-    nfBuilderOptions.dev || watch ? createNfWatcher() : undefined;
+  const nfWatcher: NfFileWatcher | undefined = watch ? createNfWatcher() : undefined;
 
   if (nfWatcher) {
     nfWatcher.addPaths(path.dirname(path.resolve(context.workspaceRoot, federationTsConfig)));
   }
 
-  if (existsSync(normalized.options.outputPath)) {
-    rmSync(normalized.options.outputPath, { recursive: true });
+  if (fs.existsSync(normalized.options.outputPath)) {
+    fs.rmSync(normalized.options.outputPath, { recursive: true });
   }
 
-  if (!existsSync(normalized.options.outputPath)) {
-    mkdirSync(normalized.options.outputPath, { recursive: true });
+  if (!fs.existsSync(normalized.options.outputPath)) {
+    fs.mkdirSync(normalized.options.outputPath, { recursive: true });
   }
 
   let federationResult: FederationInfo;
@@ -351,10 +385,6 @@ export async function* runBuilder(
     syncNfFileWatcher(nfWatcher, normalized.options.federationCache.bundlerCache);
   }
 
-  if (activateSsr) {
-    writeFstartScript(normalized.options);
-  }
-
   const hasLocales = i18n?.locales && Object.keys(i18n.locales).length > 0;
   if (hasLocales && localeFilter) {
     const start = process.hrtime();
@@ -367,7 +397,7 @@ export async function* runBuilder(
 
   const appBuilderName = '@angular/build:application';
 
-  const builderRun = runServer
+  const builderRun = runViteServer
     ? serveWithVite(
         serverOptions as unknown as Parameters<typeof serveWithVite>[0],
         appBuilderName,
@@ -401,7 +431,7 @@ export async function* runBuilder(
       if (!ngBuildStatus.success) {
         logger.warn('Skipping federation artifacts because Angular build failed.');
         buildResult = await builderIterator.next();
-      } else if (!first && (nfBuilderOptions.dev || watch)) {
+      } else if (!first && watch) {
         const nextOutputPromise = builderIterator.next();
 
         const trackResult = await rebuildQueue.track(async (signal: AbortSignal) => {
@@ -484,7 +514,8 @@ export async function* runBuilder(
 
         if (trackResult.type === 'completed') {
           if (!trackResult.result.cancelled) {
-            yield { success: trackResult.result.success };
+            ngBuildStatus = { success: trackResult.result.success };
+            yield ngBuildStatus;
           }
           buildResult = await nextOutputPromise;
         } else {
@@ -512,41 +543,57 @@ function removeBaseHref(req: { url?: string }, baseHref?: string) {
   let url = req.url ?? '';
 
   if (baseHref && url.startsWith(baseHref)) {
-    url = url.substr(baseHref.length);
+    url = url.slice(baseHref.length);
   }
   return url;
 }
 
-function writeFstartScript(nfOptions: NormalizedFederationOptions) {
-  const serverOutpath = path.join(nfOptions.outputPath, '../server');
-  const fstartPath = path.join(serverOutpath, 'fstart.mjs');
-  const buffer = Buffer.from(fstart, 'base64');
-  fs.mkdirSync(serverOutpath, { recursive: true });
-  fs.writeFileSync(fstartPath, buffer, 'utf-8');
+/**
+ * Build the dev server's origin (e.g. `http://localhost:4200`) from the resolved
+ * dev-server options, whose `port` Angular's normalizeOptions already defaults.
+ * Omits the port when none is set, and returns undefined when there are no serve
+ * options at all, so the bridge falls back to the on-disk manifest path.
+ */
+function getDevServerOrigin(
+  serverOptions: { ssl?: boolean; host?: string; port?: number } | null
+): string | undefined {
+  if (!serverOptions) {
+    return undefined;
+  }
+  const protocol = serverOptions.ssl ? 'https' : 'http';
+  const host = serverOptions.host || 'localhost';
+  return serverOptions.port
+    ? `${protocol}://${host}:${serverOptions.port}`
+    : `${protocol}://${host}`;
 }
 
-function getLocaleFilter(options: ApplicationBuilderOptions, runServer: boolean) {
+function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: boolean) {
   let localize = options.localize || false;
 
-  if (runServer && Array.isArray(localize) && localize.length > 1) {
+  if (runViteServer && Array.isArray(localize) && localize.length > 1) {
     localize = false;
   }
 
-  if (runServer && localize === true) {
+  if (runViteServer && localize === true) {
     localize = false;
   }
   return localize;
 }
 
-function inferConfigPath(tsConfig: string, workspaceRoot: string): string {
+function inferConfigPath(
+  tsConfig: string,
+  workspaceRoot: string,
+  federationConfigPath = DEFAULT_NF_CONFIG_FILE_NAME
+): string {
   const relProjectPath = path.dirname(tsConfig);
-  const mjsRelPath = path.join(relProjectPath, 'federation.config.mjs');
+
+  const mjsRelPath = path.join(relProjectPath, federationConfigPath);
 
   if (fs.existsSync(path.resolve(workspaceRoot, mjsRelPath))) {
     return mjsRelPath;
   }
 
-  return path.join(relProjectPath, 'federation.config.js');
+  return path.join(relProjectPath, LEGACY_NF_CONFIG_FILE_NAME);
 }
 
 function transformIndexHtml(nfOptions: NfBuilderSchema): (content: string) => Promise<string> {

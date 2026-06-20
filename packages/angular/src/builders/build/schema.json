@@ -16,8 +16,7 @@
       "default": false
     },
     "watch": {
-      "type": "boolean",
-      "default": false
+      "type": "boolean"
     },
     "port": {
       "type": "number",
@@ -84,6 +83,11 @@
           "description": "You can override the default endpoint to send build completion events to."
         }
       }
+    },
+    "federationConfigPath": {
+      "type": "string",
+      "description": "The path to the federation config file. If not provided, the default path will be used.",
+      "default": "federation.config.mjs"
     }
   }
 }
