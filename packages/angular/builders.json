@@ -6,10 +6,10 @@
       "schema": "./src/builders/build/schema.json",
       "description": "native federation builder"
     },
-    "build-slim": {
-      "implementation": "./src/builders/build-slim/builder",
-      "schema": "./src/builders/build-slim/schema.json",
-      "description": "native federation builder without the Angular application build (federation artifacts + minimal Vite server only)"
+    "remote": {
+      "implementation": "./src/builders/remote/builder",
+      "schema": "./src/builders/remote/schema.json",
+      "description": "native federation builder without the Angular application build or dev server (federation artifacts + copied assets only; serving is handled externally)"
     }
   }
 }

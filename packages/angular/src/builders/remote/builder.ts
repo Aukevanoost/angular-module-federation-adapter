@@ -25,25 +25,28 @@ import {
 } from '@softarc/native-federation/internal';
 
 import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
-import { federationBuildNotifier } from '../build/federation-build-notifier.js';
 import { checkForInvalidImports } from '../../utils/check-for-invalid-imports.js';
 
-import type { NfSlimBuilderSchema, NfSlimInternalOptions } from './schema.js';
+import type { NfRemoteBuilderSchema, NfRemoteInternalOptions } from './schema.js';
 import { resolveNgBuilderOptions } from './resolve-ng-options.js';
 import { inferFederationConfigPath } from './infer-config-path.js';
-import { writeSlimIndexHtml } from './index-html.js';
-import { createStaticFileMiddleware } from './static-middleware.js';
 import { createDebouncedChangeWatcher } from './change-watcher.js';
-import { createSlimViteServer } from './vite-server.js';
 import {
   copyAllAssets,
   copyChangedAssets,
   getAssetWatchDirs,
-  normalizeSlimAssetEntries,
+  normalizeRemoteAssetEntries,
 } from './assets.js';
 
-export async function* runSlimBuilder(
-  nfBuilderOptions: NfSlimBuilderSchema & NfSlimInternalOptions,
+/**
+ * THIS BUILDER IS EXPERIMENTAL AND MIGHT CHANGE OVER TIME
+ *
+ * @param nfBuilderOptions
+ * @param context
+ */
+
+export async function* runRemoteBuilder(
+  nfBuilderOptions: NfRemoteBuilderSchema & NfRemoteInternalOptions,
   context: BuilderContext
 ): AsyncIterable<BuilderOutput> {
   const federationTsConfig = nfBuilderOptions.tsConfig;
@@ -53,16 +56,14 @@ export async function* runSlimBuilder(
 
   const { ngBuilderOptions, projectRoot, projectSourceRoot } = await resolveNgBuilderOptions(
     nfBuilderOptions,
-    context,
-    outputBase,
-    federationTsConfig
+    context
   );
 
   const adapter = createAngularBuildAdapter(ngBuilderOptions, context);
   setBuildAdapter(adapter);
   setLogLevel(nfBuilderOptions.verbose ? 'verbose' : 'info');
 
-  // Unlike the regular build builder, slim never bundles a main.ts / polyfills.
+  // Unlike the regular build builder, remote never bundles a main.ts / polyfills.
   // Entry points come from the schema override or, when omitted, from the
   // `exposes` map in federation.config.{mjs,js} (resolved by normalizeFederationOptions).
   const entryPoints: string[] | undefined = nfBuilderOptions.entryPoints?.length
@@ -82,7 +83,6 @@ export async function* runSlimBuilder(
       watch: nfBuilderOptions.watch,
       dev: !!nfBuilderOptions.dev,
       entryPoints,
-      buildNotifications: nfBuilderOptions.buildNotifications,
       cacheExternalArtifacts: nfBuilderOptions.cacheExternalArtifacts !== false,
     },
     createFederationCache(cachePath, new SourceFileCache(cachePath))
@@ -96,20 +96,7 @@ export async function* runSlimBuilder(
 
   const externals = getExternals(normalized.config);
 
-  const isLocalDevelopment = !!nfBuilderOptions.watch && !!nfBuilderOptions.dev;
-
-  if (isLocalDevelopment && nfBuilderOptions.buildNotifications?.enable) {
-    federationBuildNotifier.initialize(nfBuilderOptions.buildNotifications.endpoint);
-  }
-
-  const middleware = [
-    ...(isLocalDevelopment
-      ? [federationBuildNotifier.createEventMiddleware(req => req.url ?? '')]
-      : []),
-    createStaticFileMiddleware(absoluteBrowserOutput),
-  ];
-
-  const assetEntries = normalizeSlimAssetEntries(
+  const assetEntries = normalizeRemoteAssetEntries(
     nfBuilderOptions.assets,
     context.workspaceRoot,
     projectRoot,
@@ -147,17 +134,7 @@ export async function* runSlimBuilder(
     syncNfFileWatcher(changeWatcher.watcher, normalized.options.federationCache.bundlerCache);
   }
 
-  writeSlimIndexHtml(absoluteBrowserOutput, context.workspaceRoot, nfBuilderOptions.index);
-
   const rebuildQueue = new RebuildQueue();
-
-  const viteServer = nfBuilderOptions.watch
-    ? await createSlimViteServer({
-        root: absoluteBrowserOutput,
-        port: nfBuilderOptions.port,
-        middleware,
-      })
-    : undefined;
 
   try {
     yield { success: true };
@@ -172,14 +149,24 @@ export async function* runSlimBuilder(
       // second phantom build with an empty snapshot once the first one finishes.
       if (changeWatcher.pendingPaths.size === 0) continue;
 
+      // The freshly-reset change promise doubles as the interrupt signal: if a
+      // newer (debounced) change lands while this rebuild is in flight, abort it
+      // and loop to fold the new paths in — mirroring how the `build` builder
+      // passes Angular's next output as the interrupt to RebuildQueue.track.
+      // Without this, RebuildQueue's AbortSignal is never triggered and a stale
+      // rebuild must finish before a fresh save is picked up.
+      const interruptPromise = changeWatcher.waitForChange();
+
       const trackResult = await rebuildQueue.track(async (signal: AbortSignal) => {
         try {
           if (signal?.aborted) {
             throw new AbortedError('Build canceled before starting');
           }
 
-          // Snapshot but don't clear — if the build is aborted or fails,
-          // the paths stay in pendingPaths and are retried on the next cycle.
+          // Snapshot but don't clear — unlike the build builder (which clears its
+          // buffer eagerly and relies on Angular's iterator to re-trigger), this
+          // builder owns its watcher, so if the build is aborted or fails the paths
+          // stay in pendingPaths and are retried on the next cycle.
           const changedFiles = [...changeWatcher.pendingPaths];
 
           await rebuildForFederation(
@@ -204,30 +191,28 @@ export async function* runSlimBuilder(
           syncNfFileWatcher(changeWatcher.watcher, normalized.options.federationCache.bundlerCache);
 
           if (signal?.aborted) {
-            throw new AbortedError('[slim-builder] After federation build.');
+            throw new AbortedError('[remote-builder] After federation build.');
           }
 
           logger.info('Done!');
 
-          if (isLocalDevelopment) {
-            federationBuildNotifier.broadcastBuildCompletion();
-          }
           return { success: true };
         } catch (error) {
           if (error instanceof AbortedError) {
             logger.verbose('Rebuild was canceled. Cancellation point: ' + error?.message);
-            federationBuildNotifier.broadcastBuildCancellation();
             return { success: false, cancelled: true };
           }
           logger.error('Federation rebuild failed!');
           if (nfBuilderOptions.verbose) console.error(error);
-          if (isLocalDevelopment) {
-            federationBuildNotifier.broadcastBuildError(error);
-          }
           return { success: false };
         }
-      });
+      }, interruptPromise);
 
+      // Mirrors the build builder's trackResult handling, minus the iterator pump:
+      // there the 'interrupted' branch feeds Angular's next output back into the
+      // loop, whereas here the new change has already resolved the current change
+      // promise, so the next loop iteration picks it up immediately. The aborted
+      // build left its paths in pendingPaths, so nothing is lost.
       if (trackResult.type === 'completed' && !trackResult.result.cancelled) {
         yield { success: trackResult.result.success };
       }
@@ -237,13 +222,8 @@ export async function* runSlimBuilder(
     rebuildQueue.dispose();
     await adapter.dispose();
     await changeWatcher?.watcher.close();
-    await viteServer?.close();
-
-    if (isLocalDevelopment) {
-      federationBuildNotifier.stopEventServer();
-    }
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default createBuilder(runSlimBuilder) as any;
+export default createBuilder(runRemoteBuilder) as any;

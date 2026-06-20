@@ -19,7 +19,7 @@ export type NormalizedAssetEntry = {
   flatten?: boolean;
 };
 
-export function normalizeSlimAssetEntries(
+export function normalizeRemoteAssetEntries(
   assets: ApplicationBuilderOptions['assets'] | undefined,
   workspaceRoot: string,
   projectRoot: string,
