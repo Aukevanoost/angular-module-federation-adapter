@@ -457,8 +457,10 @@ export async function* runBuilder(
             }
 
             // Invalidate only files that changed since the last rebuild, falling back to all
-            // source files when the buffer is empty (e.g. first watch rebuild).
-            const pendingFiles = nfWatcher ? [...nfWatcher.get()] : [];
+            // source files when the buffer is empty (e.g. first watch rebuild). Unlike the
+            // remote builder, the buffer is cleared eagerly here because Angular's iterator —
+            // not this buffer — re-triggers the next rebuild.
+            const changedFiles = nfWatcher ? [...nfWatcher.get()] : [];
 
             if (nfWatcher) nfWatcher.clear();
 
@@ -466,7 +468,7 @@ export async function* runBuilder(
               normalized.config,
               normalized.options,
               externals,
-              pendingFiles,
+              changedFiles,
               signal
             );
 
@@ -512,6 +514,9 @@ export async function* runBuilder(
           }
         }, nextOutputPromise);
 
+        // Same trackResult shape as the remote builder, plus the iterator pump:
+        // the 'interrupted' branch feeds Angular's next output back into the loop
+        // (the remote builder has no iterator, so it just loops on its watcher).
         if (trackResult.type === 'completed') {
           if (!trackResult.result.cancelled) {
             ngBuildStatus = { success: trackResult.result.success };

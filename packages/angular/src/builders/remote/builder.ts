@@ -1,0 +1,229 @@
+import '../build/setup-builder-env-variables.js';
+
+import * as path from 'path';
+import { existsSync, mkdirSync, rmSync } from 'fs';
+
+import { SourceFileCache } from '@angular/build/private';
+
+import { type BuilderContext, type BuilderOutput, createBuilder } from '@angular-devkit/architect';
+
+import {
+  buildForFederation,
+  rebuildForFederation,
+  getExternals,
+  normalizeFederationOptions,
+  setBuildAdapter,
+  createFederationCache,
+} from '@softarc/native-federation';
+import {
+  logger,
+  setLogLevel,
+  RebuildQueue,
+  AbortedError,
+  getDefaultCachePath,
+  syncNfFileWatcher,
+} from '@softarc/native-federation/internal';
+
+import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
+import { checkForInvalidImports } from '../../utils/check-for-invalid-imports.js';
+
+import type { NfRemoteBuilderSchema, NfRemoteInternalOptions } from './schema.js';
+import { resolveNgBuilderOptions } from './resolve-ng-options.js';
+import { inferFederationConfigPath } from './infer-config-path.js';
+import { createDebouncedChangeWatcher } from './change-watcher.js';
+import {
+  copyAllAssets,
+  copyChangedAssets,
+  getAssetWatchDirs,
+  normalizeRemoteAssetEntries,
+} from './assets.js';
+
+/**
+ * THIS BUILDER IS EXPERIMENTAL AND MIGHT CHANGE OVER TIME
+ *
+ * @param nfBuilderOptions
+ * @param context
+ */
+
+export async function* runRemoteBuilder(
+  nfBuilderOptions: NfRemoteBuilderSchema & NfRemoteInternalOptions,
+  context: BuilderContext
+): AsyncIterable<BuilderOutput> {
+  const federationTsConfig = nfBuilderOptions.tsConfig;
+  const outputBase = nfBuilderOptions.outputPath ?? `dist/${context.target!.project}`;
+  const browserOutputPath = path.join(outputBase, 'browser');
+  const absoluteBrowserOutput = path.resolve(context.workspaceRoot, browserOutputPath);
+
+  const { ngBuilderOptions, projectRoot, projectSourceRoot } = await resolveNgBuilderOptions(
+    nfBuilderOptions,
+    context
+  );
+
+  const adapter = createAngularBuildAdapter(ngBuilderOptions, context);
+  setBuildAdapter(adapter);
+  setLogLevel(nfBuilderOptions.verbose ? 'verbose' : 'info');
+
+  // Unlike the regular build builder, remote never bundles a main.ts / polyfills.
+  // Entry points come from the schema override or, when omitted, from the
+  // `exposes` map in federation.config.{mjs,js} (resolved by normalizeFederationOptions).
+  const entryPoints: string[] | undefined = nfBuilderOptions.entryPoints?.length
+    ? nfBuilderOptions.entryPoints
+    : undefined;
+
+  const cachePath = getDefaultCachePath(context.workspaceRoot);
+
+  const normalized = await normalizeFederationOptions(
+    {
+      projectName: nfBuilderOptions.projectName,
+      workspaceRoot: context.workspaceRoot,
+      outputPath: browserOutputPath,
+      federationConfig: inferFederationConfigPath(federationTsConfig, context.workspaceRoot),
+      tsConfig: federationTsConfig,
+      verbose: nfBuilderOptions.verbose,
+      watch: nfBuilderOptions.watch,
+      dev: !!nfBuilderOptions.dev,
+      entryPoints,
+      cacheExternalArtifacts: nfBuilderOptions.cacheExternalArtifacts !== false,
+    },
+    createFederationCache(cachePath, new SourceFileCache(cachePath))
+  );
+
+  checkForInvalidImports(Object.values(normalized.config.sharedMappings), 'shared mappings');
+  checkForInvalidImports(Object.keys(normalized.config.shared), 'externals');
+
+  const start = process.hrtime();
+  logger.measure(start, 'To load the federation config.');
+
+  const externals = getExternals(normalized.config);
+
+  const assetEntries = normalizeRemoteAssetEntries(
+    nfBuilderOptions.assets,
+    context.workspaceRoot,
+    projectRoot,
+    projectSourceRoot
+  );
+
+  const changeWatcher = nfBuilderOptions.watch
+    ? createDebouncedChangeWatcher(nfBuilderOptions.rebuildDelay)
+    : undefined;
+
+  if (changeWatcher) {
+    changeWatcher.watcher.addPaths(
+      path.dirname(path.resolve(context.workspaceRoot, federationTsConfig))
+    );
+    for (const assetDir of getAssetWatchDirs(assetEntries, context.workspaceRoot)) {
+      changeWatcher.watcher.addPaths(assetDir);
+    }
+  }
+
+  if (existsSync(normalized.options.outputPath)) {
+    rmSync(normalized.options.outputPath, { recursive: true });
+  }
+  mkdirSync(normalized.options.outputPath, { recursive: true });
+
+  try {
+    await buildForFederation(normalized.config, normalized.options, externals);
+  } catch (e) {
+    logger.error((e as Error)?.message ?? 'Building the artifacts failed');
+    process.exit(1);
+  }
+
+  await copyAllAssets(assetEntries, absoluteBrowserOutput, context.workspaceRoot);
+
+  if (changeWatcher) {
+    syncNfFileWatcher(changeWatcher.watcher, normalized.options.federationCache.bundlerCache);
+  }
+
+  const rebuildQueue = new RebuildQueue();
+
+  try {
+    yield { success: true };
+
+    while (nfBuilderOptions.watch && changeWatcher) {
+      await changeWatcher.waitForChange();
+      changeWatcher.resetChangePromise();
+
+      // fs.watch fires multiple events per save (write+rename, plus overlapping
+      // directory and per-file watchers). Redundant events arriving during a
+      // rebuild resolve the next promise, so without this guard the loop runs a
+      // second phantom build with an empty snapshot once the first one finishes.
+      if (changeWatcher.pendingPaths.size === 0) continue;
+
+      // The freshly-reset change promise doubles as the interrupt signal: if a
+      // newer (debounced) change lands while this rebuild is in flight, abort it
+      // and loop to fold the new paths in — mirroring how the `build` builder
+      // passes Angular's next output as the interrupt to RebuildQueue.track.
+      // Without this, RebuildQueue's AbortSignal is never triggered and a stale
+      // rebuild must finish before a fresh save is picked up.
+      const interruptPromise = changeWatcher.waitForChange();
+
+      const trackResult = await rebuildQueue.track(async (signal: AbortSignal) => {
+        try {
+          if (signal?.aborted) {
+            throw new AbortedError('Build canceled before starting');
+          }
+
+          // Snapshot but don't clear — unlike the build builder (which clears its
+          // buffer eagerly and relies on Angular's iterator to re-trigger), this
+          // builder owns its watcher, so if the build is aborted or fails the paths
+          // stay in pendingPaths and are retried on the next cycle.
+          const changedFiles = [...changeWatcher.pendingPaths];
+
+          await rebuildForFederation(
+            normalized.config,
+            normalized.options,
+            externals,
+            changedFiles,
+            signal
+          );
+
+          await copyChangedAssets(
+            assetEntries,
+            absoluteBrowserOutput,
+            context.workspaceRoot,
+            changedFiles
+          );
+
+          // Clear only what we consumed. Any paths pushed during the build
+          // remain in pendingPaths and will drive the next iteration.
+          for (const p of changedFiles) changeWatcher.pendingPaths.delete(p);
+
+          syncNfFileWatcher(changeWatcher.watcher, normalized.options.federationCache.bundlerCache);
+
+          if (signal?.aborted) {
+            throw new AbortedError('[remote-builder] After federation build.');
+          }
+
+          logger.info('Done!');
+
+          return { success: true };
+        } catch (error) {
+          if (error instanceof AbortedError) {
+            logger.verbose('Rebuild was canceled. Cancellation point: ' + error?.message);
+            return { success: false, cancelled: true };
+          }
+          logger.error('Federation rebuild failed!');
+          if (nfBuilderOptions.verbose) console.error(error);
+          return { success: false };
+        }
+      }, interruptPromise);
+
+      // Mirrors the build builder's trackResult handling, minus the iterator pump:
+      // there the 'interrupted' branch feeds Angular's next output back into the
+      // loop, whereas here the new change has already resolved the current change
+      // promise, so the next loop iteration picks it up immediately. The aborted
+      // build left its paths in pendingPaths, so nothing is lost.
+      if (trackResult.type === 'completed' && !trackResult.result.cancelled) {
+        yield { success: trackResult.result.success };
+      }
+    }
+  } finally {
+    changeWatcher?.dispose();
+    rebuildQueue.dispose();
+    await adapter.dispose();
+    await changeWatcher?.watcher.close();
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default createBuilder(runRemoteBuilder) as any;

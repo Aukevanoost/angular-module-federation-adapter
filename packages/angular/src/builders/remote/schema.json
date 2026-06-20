@@ -1,0 +1,116 @@
+{
+  "version": 2,
+  "outputCapture": "direct-nodejs",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "title": "native federation remote builder",
+  "description": "builder for native federation remotes that only produces the federation artifacts (remoteEntry.json + referenced files) plus copied assets. No Angular application build and no dev server; serving is handled externally.",
+  "type": "object",
+  "properties": {
+    "tsConfig": {
+      "type": "string",
+      "description": "Path to the tsconfig used to compile the exposed modules and shared mappings."
+    },
+    "dev": {
+      "type": "boolean",
+      "description": "Set this to true to start the builder in dev mode",
+      "default": false
+    },
+    "watch": {
+      "type": "boolean",
+      "default": false
+    },
+    "entryPoints": {
+      "type": "array"
+    },
+    "rebuildDelay": {
+      "type": "number",
+      "default": 2000,
+      "description": "Debounce delay (ms) before rebuilding federation artifacts after a file change in watch mode."
+    },
+    "projectName": {
+      "type": "string"
+    },
+    "outputPath": {
+      "type": "string"
+    },
+    "verbose": {
+      "type": "boolean",
+      "default": false
+    },
+    "cacheExternalArtifacts": {
+      "type": "boolean",
+      "default": true,
+      "description": "Will cache the shared externals so they can be re-used between builds",
+      "alias": "cache"
+    },
+    "assets": {
+      "type": "array",
+      "description": "Assets to copy into the output directory. Same shape as @angular/build:application 'assets'.",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "properties": {
+              "glob": { "type": "string" },
+              "input": { "type": "string" },
+              "output": { "type": "string" },
+              "ignore": { "type": "array", "items": { "type": "string" } },
+              "followSymlinks": { "type": "boolean" }
+            },
+            "required": ["glob", "input"]
+          }
+        ]
+      }
+    },
+    "stylePreprocessorOptions": {
+      "type": "object",
+      "description": "Options passed to style preprocessors (e.g. Sass includePaths).",
+      "properties": {
+        "includePaths": { "type": "array", "items": { "type": "string" } },
+        "sass": { "type": "object" }
+      }
+    },
+    "inlineStyleLanguage": {
+      "type": "string",
+      "description": "Preprocessor language for inline component styles.",
+      "enum": ["css", "less", "sass", "scss"]
+    },
+    "fileReplacements": {
+      "type": "array",
+      "description": "Replace files listed in the build at compile time.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "replace": { "type": "string" },
+          "with": { "type": "string" }
+        },
+        "required": ["replace", "with"]
+      }
+    },
+    "sourceMap": {
+      "description": "Enable or configure source maps.",
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "properties": {
+            "scripts": { "type": "boolean" },
+            "styles": { "type": "boolean" },
+            "hidden": { "type": "boolean" },
+            "vendor": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "optimization": {
+      "description": "Enable or configure optimizations.",
+      "oneOf": [{ "type": "boolean" }, { "type": "object" }]
+    },
+    "preserveSymlinks": {
+      "type": "boolean",
+      "description": "Do not use the real path when resolving modules."
+    }
+  },
+  "required": ["tsConfig"]
+}
