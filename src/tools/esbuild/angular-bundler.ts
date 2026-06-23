@@ -12,10 +12,10 @@ import {
   type CompilerPluginOptions,
 } from '@angular/build/private';
 
-import { normalizeOptimization, normalizeSourceMaps } from './normalize-build-options.js';
+import { normalizeOptimization, normalizeSourceMaps } from '../../utils/normalize-build-options.js';
 
 import { createAwaitableCompilerPlugin } from './create-awaitable-compiler-plugin.js';
-import type { NormalizedContextOptions } from './normalize-context-options.js';
+import type { NormalizedContextOptions } from '../../utils/normalize-context-options.js';
 import { updateFederationTsConfig } from './create-federation-tsconfig.js';
 
 export async function createAngularEsbuildContext(options: NormalizedContextOptions): Promise<{

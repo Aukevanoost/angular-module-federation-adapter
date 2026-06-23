@@ -15,8 +15,8 @@ import type { BuilderContext } from '@angular-devkit/architect';
 import type { ApplicationBuilderOptions } from '@angular/build';
 import { createAngularEsbuildContext } from './angular-bundler.js';
 import { createNodeModulesEsbuildContext } from './node-modules-bundler.js';
-import { normalizeContextOptions } from './normalize-context-options.js';
-import type { NfInternalOptions } from '../builders/build/schema.js';
+import { normalizeContextOptions } from '../../utils/normalize-context-options.js';
+import type { NfInternalOptions } from '../../builders/build/schema.js';
 
 export interface EsbuildContextResult extends NFBuildAdapterContext<esbuild.BuildContext> {
   pluginDisposed: Promise<void>;

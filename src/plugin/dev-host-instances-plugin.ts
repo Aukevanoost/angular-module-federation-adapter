@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'esbuild';
 
 /**
- * Injects the dev-only host-instance bridge (`tools/dev-host-instances-entry.ts`)
+ * Injects the dev-only host-instance bridge (`tools/ssr/dev-host-instances-entry.ts`)
  * into the `ng serve` SSR server bundle.
  *
  * Gates on `platform === 'node'` — the only reliable SSR signal here, since the
@@ -15,7 +15,7 @@ import type { Plugin } from 'esbuild';
  * builder — so there is nothing to keep correct across a string template.
  */
 const BRIDGE_MODULE = fileURLToPath(
-  new URL('../tools/dev-host-instances-entry.js', import.meta.url)
+  new URL('../tools/ssr/dev-host-instances-entry.js', import.meta.url)
 );
 
 export function devHostInstancesPlugin(): Plugin {

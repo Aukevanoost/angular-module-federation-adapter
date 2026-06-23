@@ -9,9 +9,9 @@ import {
   Cache,
 } from '@angular/build/private';
 
-import { normalizeSourceMaps } from './normalize-build-options.js';
+import { normalizeSourceMaps } from '../../utils/normalize-build-options.js';
 
-import type { NormalizedContextOptions } from './normalize-context-options.js';
+import type { NormalizedContextOptions } from '../../utils/normalize-context-options.js';
 
 const LINKER_DECLARATION_PREFIX = 'ɵɵngDeclare';
 
@@ -19,7 +19,7 @@ const LINKER_DECLARATION_PREFIX = 'ɵɵngDeclare';
  * Excludes @angular/core and @angular/compiler which define the declarations
  * and would cause false positives.
  */
-function requiresLinking(filePath: string, source: string): boolean {
+export function requiresLinking(filePath: string, source: string): boolean {
   if (/[\\/]@angular[\\/](?:compiler|core)[\\/]/.test(filePath)) {
     return false;
   }

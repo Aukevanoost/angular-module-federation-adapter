@@ -2,6 +2,11 @@ import type { Plugin, PluginBuild } from 'esbuild';
 import * as path from 'path';
 import type { PathToImport } from '@softarc/native-federation/internal';
 
+// TODO: `createSharedMappingsPlugin` currently has no callers. Before deleting,
+// verify its responsibility (rewriting relative imports of shared/exposed paths
+// to externals) isn't already handled elsewhere — e.g. the federation adapter's
+// `external` list / mapped-paths handling in `angular-bundler.ts`. If covered,
+// remove this file and its spec; otherwise wire it back into the esbuild config.
 export function createSharedMappingsPlugin(mappedPaths: PathToImport): Plugin {
   return {
     name: 'custom',

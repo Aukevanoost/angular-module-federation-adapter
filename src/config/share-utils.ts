@@ -45,11 +45,21 @@ export function withNativeFederation(cfg: FederationConfig) {
   return normalized;
 }
 
-function getDefaultPlatform(deps: string[]): 'browser' | 'node' {
-  const server = deps.find(e =>
-    ['@angular/platform-server', '@angular/ssr'].find(f => e.startsWith(f))
+/**
+ * Package name prefixes that imply a server (Node) build. Matched with
+ * `startsWith`, so secondary entry points (e.g. `@angular/ssr/node`) match too.
+ */
+export const SERVER_DEPENDENCIES = ['@angular/platform-server', '@angular/ssr'];
+
+/**
+ * Infers the default federation platform from the shared dependency keys:
+ * `'node'` if any of them is an Angular server package, otherwise `'browser'`.
+ */
+export function getDefaultPlatform(deps: string[]): 'browser' | 'node' {
+  const hasServerDep = deps.some(dep =>
+    SERVER_DEPENDENCIES.some(server => dep.startsWith(server))
   );
-  return server ? 'node' : 'browser';
+  return hasServerDep ? 'node' : 'browser';
 }
 
 function removeNgLocales(shared: NormalizedSharedExternalsConfig): NormalizedSharedExternalsConfig {

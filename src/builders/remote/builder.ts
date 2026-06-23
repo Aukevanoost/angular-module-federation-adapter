@@ -24,7 +24,7 @@ import {
   syncNfFileWatcher,
 } from '@softarc/native-federation/internal';
 
-import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
+import { createAngularBuildAdapter } from '../../tools/esbuild/angular-esbuild-adapter.js';
 import { checkForInvalidImports } from '../../utils/check-for-invalid-imports.js';
 
 import type { NfRemoteBuilderSchema, NfRemoteInternalOptions } from './schema.js';

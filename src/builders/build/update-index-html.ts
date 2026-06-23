@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import type { FederationOptions } from '@softarc/native-federation';
-import type { NfBuilderSchema } from '../builders/build/schema.js';
+import type { NfBuilderSchema } from './schema.js';
 
 export function updateIndexHtml(fedOptions: FederationOptions, nfOptions: NfBuilderSchema) {
   const outputPath = path.join(fedOptions.workspaceRoot, fedOptions.outputPath);

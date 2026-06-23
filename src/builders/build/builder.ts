@@ -46,9 +46,9 @@ import {
 } from '@softarc/native-federation/internal';
 import { type Plugin, type PluginBuild } from 'esbuild';
 import { devHostInstancesPlugin } from '../../plugin/dev-host-instances-plugin.js';
-import { createAngularBuildAdapter } from '../../utils/angular-esbuild-adapter.js';
-import { getI18nConfig, translateFederationArtifacts } from '../../utils/i18n.js';
-import { updateScriptTags } from '../../utils/update-index-html.js';
+import { createAngularBuildAdapter } from '../../tools/esbuild/angular-esbuild-adapter.js';
+import { getI18nConfig, translateFederationArtifacts } from './i18n.js';
+import { updateScriptTags } from './update-index-html.js';
 import { checkForInvalidImports } from './../../utils/check-for-invalid-imports.js';
 import { federationBuildNotifier } from './federation-build-notifier.js';
 import type { NfBuilderSchema, NfInternalOptions } from './schema.js';
