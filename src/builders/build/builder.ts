@@ -1,10 +1,5 @@
 import './setup-builder-env-variables.js';
 
-import {
-  DEFAULT_NF_CONFIG_FILE_NAME,
-  LEGACY_NF_CONFIG_FILE_NAME,
-} from '../../config/constants.js';
-
 import * as fs from 'fs';
 import * as mrmime from 'mrmime';
 import * as path from 'path';
@@ -588,7 +583,7 @@ function getLocaleFilter(options: ApplicationBuilderOptions, runViteServer: bool
 function inferConfigPath(
   tsConfig: string,
   workspaceRoot: string,
-  federationConfigPath = DEFAULT_NF_CONFIG_FILE_NAME
+  federationConfigPath = 'federation.config.mjs'
 ): string {
   const relProjectPath = path.dirname(tsConfig);
 
@@ -598,7 +593,7 @@ function inferConfigPath(
     return mjsRelPath;
   }
 
-  return path.join(relProjectPath, LEGACY_NF_CONFIG_FILE_NAME);
+  return path.join(relProjectPath, 'federation.config.js');
 }
 
 function transformIndexHtml(nfOptions: NfBuilderSchema): (content: string) => Promise<string> {

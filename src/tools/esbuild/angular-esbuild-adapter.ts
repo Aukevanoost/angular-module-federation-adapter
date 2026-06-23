@@ -18,7 +18,7 @@ import { createNodeModulesEsbuildContext } from './node-modules-bundler.js';
 import { normalizeContextOptions } from '../../utils/normalize-context-options.js';
 import type { NfInternalOptions } from '../../builders/build/schema.js';
 
-export interface EsbuildContextResult extends NFBuildAdapterContext<esbuild.BuildContext> {
+interface EsbuildContextResult extends NFBuildAdapterContext<esbuild.BuildContext> {
   pluginDisposed: Promise<void>;
   cache: FederationCache<SourceFileCache>;
 }

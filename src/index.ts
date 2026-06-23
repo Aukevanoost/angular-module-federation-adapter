@@ -18,8 +18,8 @@ export type ImportMap = {
 };
 
 /**
- * Options for {@link loadRemoteModule}. Mirrors the shape in
- * `@softarc/native-federation-runtime`.
+ * Options for {@link loadRemoteModule}. Mirrors the shape used by
+ * `@softarc/native-federation-orchestrator`.
  *
  * @property remoteEntry - URL to the remote's `remoteEntry.json`. Enables
  *   lazy-loading remotes not registered during `initFederation`.
@@ -111,8 +111,8 @@ async function resolveRemoteNameFromEntry(remoteEntry: string): Promise<string> 
 }
 
 /**
- * Dynamically loads a remote module. Spec-compatible with `loadRemoteModule`
- * from `@softarc/native-federation-runtime`; bridges to the orchestrator
+ * Dynamically loads a remote module. Spec-compatible with the classic
+ * `loadRemoteModule`; bridges to the orchestrator
  * (`@softarc/native-federation-orchestrator`) under the hood.
  *
  * ```ts

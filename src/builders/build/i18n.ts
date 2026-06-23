@@ -5,13 +5,13 @@ import path from 'path';
 import fs from 'fs';
 import type { FederationInfo } from '@softarc/native-federation';
 
-export type WorkspaceConfig = {
+type WorkspaceConfig = {
   i18n?: I18nConfig;
 };
 
-export type LocaleTranslation = string | string[];
+type LocaleTranslation = string | string[];
 
-export type LocaleObject = {
+type LocaleObject = {
   translation: LocaleTranslation;
   baseHref?: string;
   subPath?: string;
@@ -22,7 +22,7 @@ export type I18nConfig = {
   locales: Record<string, LocaleTranslation | LocaleObject>;
 };
 
-export type SourceLocaleObject = {
+type SourceLocaleObject = {
   code: string;
   baseHref?: string;
   subPath?: string;

@@ -1,5 +1,5 @@
 import type { JsonObject } from '@angular-devkit/core';
-import type { BuildNotificationOptions } from '@softarc/native-federation-runtime';
+import type { BuildNotificationOptions } from '@softarc/native-federation';
 import type { ESMSInitOptions } from 'es-module-shims';
 import type { Plugin } from 'esbuild';
 

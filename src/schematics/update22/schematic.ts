@@ -1,16 +1,11 @@
-import type { Rule, Tree } from '@angular-devkit/schematics';
+import type { Rule, Tree } from "@angular-devkit/schematics";
+import { getWorkspaceFileName } from "../init/schematic.js";
 
-import {
-  DEFAULT_NF_CONFIG_FILE_NAME,
-  LEGACY_NF_CONFIG_FILE_NAME,
-} from '../../config/constants.js';
-import { getWorkspaceFileName } from '../init/schematic.js';
+import * as path from "path";
 
-import * as path from 'path';
-
-const NF_PACKAGE = '@angular-architects/native-federation';
+const NF_PACKAGE = "@angular-architects/native-federation";
 // Temporary package used during the Angular 22 RC window; folded back here.
-const BETA_PACKAGE = '@angular-architects/native-federation-v4';
+const BETA_PACKAGE = "@angular-architects/native-federation-v4";
 const NF_BUILDER = `${NF_PACKAGE}:build`;
 const BETA_BUILDER = `${BETA_PACKAGE}:build`;
 
@@ -18,7 +13,9 @@ const BETA_BUILDER = `${BETA_PACKAGE}:build`;
 export default function update22(): Rule {
   return async function (tree: Tree) {
     const workspaceFileName = getWorkspaceFileName(tree);
-    const workspace = JSON.parse(tree.read(workspaceFileName)?.toString('utf8') ?? '{}');
+    const workspace = JSON.parse(
+      tree.read(workspaceFileName)?.toString("utf8") ?? "{}",
+    );
 
     normalizeBuilderReferences(tree, workspace, workspaceFileName);
     migrateFederationConfigs(tree, workspace);
@@ -27,13 +24,17 @@ export default function update22(): Rule {
 }
 
 // Rename the beta builder back and ensure NF targets carry entryPoints/projectName.
-function normalizeBuilderReferences(tree: Tree, workspace: any, workspaceFileName: string): void {
+function normalizeBuilderReferences(
+  tree: Tree,
+  workspace: any,
+  workspaceFileName: string,
+): void {
   let modified = false;
 
   for (const projectName of Object.keys(workspace.projects ?? {})) {
     const project = workspace.projects[projectName];
     const architect = project?.architect ?? {};
-    const sourceRoot = (project?.sourceRoot ?? '').replace(/\\/g, '/');
+    const sourceRoot = (project?.sourceRoot ?? "").replace(/\\/g, "/");
 
     for (const targetName of Object.keys(architect)) {
       const target = architect[targetName];
@@ -41,12 +42,14 @@ function normalizeBuilderReferences(tree: Tree, workspace: any, workspaceFileNam
       if (target?.builder === BETA_BUILDER) {
         target.builder = NF_BUILDER;
         modified = true;
-        console.log(`Updated builder for "${projectName}:${targetName}" to ${NF_BUILDER}`);
+        console.log(
+          `Updated builder for "${projectName}:${targetName}" to ${NF_BUILDER}`,
+        );
       }
 
       if (target?.builder === NF_BUILDER && !target?.options?.entryPoints) {
         target.options ??= {};
-        target.options.entryPoints = [path.join(sourceRoot, 'main.ts')];
+        target.options.entryPoints = [path.join(sourceRoot, "main.ts")];
         if (!target.options.projectName) {
           target.options.projectName = projectName;
         }
@@ -56,7 +59,7 @@ function normalizeBuilderReferences(tree: Tree, workspace: any, workspaceFileNam
   }
 
   if (modified) {
-    tree.overwrite(workspaceFileName, JSON.stringify(workspace, null, '\t'));
+    tree.overwrite(workspaceFileName, JSON.stringify(workspace, null, "\t"));
   }
 }
 
@@ -64,8 +67,8 @@ function normalizeBuilderReferences(tree: Tree, workspace: any, workspaceFileNam
 // only get their package references normalized.
 function migrateFederationConfigs(tree: Tree, workspace: any): void {
   for (const { projectRoot } of resolveProjects(workspace)) {
-    const jsConfigPath = path.join(projectRoot, LEGACY_NF_CONFIG_FILE_NAME);
-    const mjsConfigPath = path.join(projectRoot, DEFAULT_NF_CONFIG_FILE_NAME);
+    const jsConfigPath = path.join(projectRoot, "federation.config.js");
+    const mjsConfigPath = path.join(projectRoot, "federation.config.mjs");
 
     if (!tree.exists(jsConfigPath) && tree.exists(mjsConfigPath)) {
       const content = tree.readText(mjsConfigPath);
@@ -85,24 +88,30 @@ function migrateFederationConfigs(tree: Tree, workspace: any): void {
     const originalContent = content;
 
     // const { foo } = require('...') → import { foo } from '...'
-    const requireRegex = /const\s+(\{[^}]+\})\s*=\s*require\(\s*['"]([^'"]+)['"]\s*\)\s*;?/g;
+    const requireRegex =
+      /const\s+(\{[^}]+\})\s*=\s*require\(\s*['"]([^'"]+)['"]\s*\)\s*;?/g;
     const imports: string[] = [];
-    content = content.replace(requireRegex, (_match, bindings: string, modulePath: string) => {
-      imports.push(`import ${bindings} from '${modulePath}';`);
-      return '';
-    });
+    content = content.replace(
+      requireRegex,
+      (_match, bindings: string, modulePath: string) => {
+        imports.push(`import ${bindings} from '${modulePath}';`);
+        return "";
+      },
+    );
 
     if (imports.length > 0) {
-      content = imports.join('\n') + '\n' + content.trimStart();
+      content = imports.join("\n") + "\n" + content.trimStart();
     }
 
-    content = content.replace(/module\.exports\s*=\s*/, 'export default ');
+    content = content.replace(/module\.exports\s*=\s*/, "export default ");
     content = normalizePackageReferences(content);
 
     if (content !== originalContent || imports.length > 0) {
       tree.delete(jsConfigPath);
       tree.create(mjsConfigPath, content);
-      console.log(`Migrated ${jsConfigPath} to ESM (renamed to ${mjsConfigPath})`);
+      console.log(
+        `Migrated ${jsConfigPath} to ESM (renamed to ${mjsConfigPath})`,
+      );
     }
   }
 }
@@ -132,20 +141,25 @@ function normalizeMainTsImports(tree: Tree, workspace: any): void {
 
 // Rewrite every `-v4` specifier (bare + subpaths) back to the canonical package.
 function normalizePackageReferences(content: string): string {
-  return content.replace(new RegExp(escapeRegExp(BETA_PACKAGE), 'g'), NF_PACKAGE);
+  return content.replace(
+    new RegExp(escapeRegExp(BETA_PACKAGE), "g"),
+    NF_PACKAGE,
+  );
 }
 
-function resolveProjects(workspace: any): Array<{ projectName: string; projectRoot: string; projectConfig: any }> {
-  return Object.keys(workspace.projects ?? {}).map(projectName => {
+function resolveProjects(
+  workspace: any,
+): Array<{ projectName: string; projectRoot: string; projectConfig: any }> {
+  return Object.keys(workspace.projects ?? {}).map((projectName) => {
     const projectConfig = workspace.projects[projectName];
     return {
       projectName,
-      projectRoot: projectConfig.root?.replace(/\\/g, '/') ?? '',
+      projectRoot: projectConfig.root?.replace(/\\/g, "/") ?? "",
       projectConfig,
     };
   });
 }
 
 function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

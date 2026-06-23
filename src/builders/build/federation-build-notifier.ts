@@ -25,7 +25,7 @@ type MiddlewareFunction = (req: IncomingMessage, res: ServerResponse, next: Next
  * Manages Server-Sent Events for federation hot reload in local development
  * Only active when running in development mode with dev server
  */
-export class FederationBuildNotifier {
+class FederationBuildNotifier {
   private connections: SSEConnection[] = [];
   private cleanupInterval: NodeJS.Timeout | null = null;
   private isActive = false;
