@@ -604,6 +604,39 @@ Update your `angular.json` (for both `build` and `serve` targets):
 }
 ```
 
+### How to instrument bundles for code coverage (e.g. Cypress E2E)?
+
+`runBuilder` accepts an internal `instrumentForCoverage` option: a predicate `(filename: string) => boolean` that decides, per file, whether Angular's build should add Istanbul instrumentation. When supplied, both the host application shell and the exposed/remote federation artifacts are instrumented, so coverage collected while running E2E tests reflects all served code.
+
+It is deliberately **not** part of the `angular.json` schema — JSON can't carry a function, and it mirrors how Angular's own `karma` builder supplies the predicate to the application builder. You provide it the same way you inject plugins: through a small custom builder.
+
+Create `coverage-builder.js`:
+
+```js
+import { runBuilder } from '@angular-architects/native-federation/internal';
+import { createBuilder } from '@angular-devkit/architect';
+import * as path from 'node:path';
+
+async function* coverageBuilder(options, context) {
+  const sourceRoot = path.join(context.workspaceRoot, 'src');
+
+  const nfOptions = {
+    ...options,
+    // Instrument your own source, but skip specs and dependencies.
+    instrumentForCoverage: (filename) =>
+      filename.startsWith(sourceRoot) &&
+      !/\.spec\.tsx?$/.test(filename) &&
+      !/[\\/]node_modules[\\/]/.test(filename),
+  };
+
+  yield* runBuilder(nfOptions, context);
+}
+
+export default createBuilder(coverageBuilder);
+```
+
+Wire it into `angular.json` exactly like the custom plugin builder above (point your `build`/`serve` target's `builder` at `./coverage-builder`). Because the predicate adds instrumentation to every matching file, only enable this builder for test/coverage runs — never for production builds.
+
 ## Documentation 📰
 
 Please have a look at this [article series](https://www.angulararchitects.io/en/aktuelles/the-microfrontend-revolution-part-2-module-federation-with-angular/).

@@ -1,7 +1,7 @@
-import type { JsonObject } from '@angular-devkit/core';
-import type { BuildNotificationOptions } from '@softarc/native-federation';
-import type { ESMSInitOptions } from 'es-module-shims';
-import type { Plugin } from 'esbuild';
+import type { JsonObject } from "@angular-devkit/core";
+import type { BuildNotificationOptions } from "@softarc/native-federation";
+import type { ESMSInitOptions } from "es-module-shims";
+import type { Plugin } from "esbuild";
 
 export interface NfBuilderSchema extends JsonObject {
   target: string;
@@ -23,4 +23,13 @@ export interface NfBuilderSchema extends JsonObject {
   cacheExternalArtifacts?: boolean;
 }
 
-export type NfInternalOptions = { plugins?: Plugin[] };
+export type NfInternalOptions = {
+  plugins?: Plugin[];
+
+  /**
+   * Enables instrumentation to collect code coverage data for specific files.
+   *
+   * Used exclusively for tests and shouldn't be used for other kinds of builds.
+   */
+  instrumentForCoverage?: (filename: string) => boolean;
+};
