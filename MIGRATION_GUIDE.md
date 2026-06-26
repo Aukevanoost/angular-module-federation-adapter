@@ -12,7 +12,7 @@ The goal of this small guide is to show the major differences between the previo
 > Already updated to the newest version? Just run the schematics!
 >
 > ```bash
-> ng update @angular-architects/native-federation --migrate-only update22
+> ng update @angular-architects/native-federation --migrate-only --name update22
 > ```
 
 The migration involves changing 4 files:
