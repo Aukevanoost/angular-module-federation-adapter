@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/@angular-devkit/architect/src/builders-schema.json",
+  "builders": {
+    "build": {
+      "implementation": "./src/builders/build/builder",
+      "schema": "./src/builders/build/schema.json",
+      "description": "native federation builder"
+    },
+    "remote": {
+      "implementation": "./src/builders/remote/builder",
+      "schema": "./src/builders/remote/schema.json",
+      "description": "native federation builder without the Angular application build or dev server (federation artifacts + copied assets only; serving is handled externally)"
+    }
+  }
+}

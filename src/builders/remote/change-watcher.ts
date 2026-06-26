@@ -1,0 +1,47 @@
+import { createNfWatcher, type NfFileWatcher } from '@softarc/native-federation/internal';
+
+export interface DebouncedChangeWatcher {
+  watcher: NfFileWatcher;
+  pendingPaths: Set<string>;
+  waitForChange: () => Promise<void>;
+  resetChangePromise: () => void;
+  dispose: () => void;
+}
+
+export function createDebouncedChangeWatcher(rebuildDelay: number): DebouncedChangeWatcher {
+  const pendingPaths = new Set<string>();
+
+  let notifyChange: () => void = () => {};
+  let changePromise: Promise<void> = new Promise<void>(r => (notifyChange = r));
+
+  const resetChangePromise = (): void => {
+    changePromise = new Promise<void>(r => (notifyChange = r));
+  };
+
+  const debounceMs = Math.max(10, rebuildDelay);
+  let debounceTimer: NodeJS.Timeout | undefined;
+  const scheduleNotify = (): void => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = undefined;
+      notifyChange();
+    }, debounceMs);
+  };
+
+  const watcher = createNfWatcher({
+    onChange: p => {
+      pendingPaths.add(p);
+      scheduleNotify();
+    },
+  });
+
+  return {
+    watcher,
+    pendingPaths,
+    waitForChange: () => changePromise,
+    resetChangePromise,
+    dispose: () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+    },
+  };
+}
