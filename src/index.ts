@@ -66,7 +66,6 @@ export function initFederation(
   remotesOrManifestUrl?: Record<string, string> | string,
   options?: InitFederationOptions
 ) {
-  // `shimMode: false` opts into native import maps instead of es-module-shims.
   const importMapProvider =
     options?.shimMode === false
       ? useDefaultImportMap()
