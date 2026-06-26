@@ -1,54 +1,61 @@
-import * as path from 'path';
-import * as fs from 'fs';
-import type { FederationOptions } from '@softarc/native-federation';
-import type { NfBuilderSchema } from './schema.js';
+import * as path from "path";
+import * as fs from "fs";
+import type { FederationOptions } from "@softarc/native-federation";
+import type { NfBuilderSchema } from "./schema.js";
 
-export function updateIndexHtml(fedOptions: FederationOptions, nfOptions: NfBuilderSchema) {
+export function updateIndexHtml(
+  fedOptions: FederationOptions,
+  nfOptions: NfBuilderSchema,
+) {
   const outputPath = path.join(fedOptions.workspaceRoot, fedOptions.outputPath);
   const indexPathCands = [
-    path.join(outputPath, '../server/index.server.html'),
-    path.join(outputPath, 'index.html'),
+    path.join(outputPath, "../server/index.server.html"),
+    path.join(outputPath, "index.html"),
   ];
 
-  const indexPath = indexPathCands.find(c => fs.existsSync(c));
+  const indexPath = indexPathCands.find((c) => fs.existsSync(c));
 
   if (!indexPath) {
-    console.error('No index.html found! Searched locations: ', indexPathCands.join(', '));
+    console.error(
+      "No index.html found! Searched locations: ",
+      indexPathCands.join(", "),
+    );
     return;
   }
 
-  // const mainName = fs.readdirSync(outputPath).find(f => f.startsWith('main') && f.endsWith('.js'));
-  // const polyfillsName = fs
-  //   .readdirSync(outputPath)
-  //   .find(f => f.startsWith('polyfills') && f.endsWith('.js'));
-
-  let indexContent = fs.readFileSync(indexPath, 'utf-8');
+  let indexContent = fs.readFileSync(indexPath, "utf-8");
 
   indexContent = updateScriptTags(indexContent, nfOptions);
-  fs.writeFileSync(indexPath, indexContent, 'utf-8');
+  fs.writeFileSync(indexPath, indexContent, "utf-8");
 }
 
-export function updateScriptTags(indexContent: string, nfOptions: NfBuilderSchema) {
+export function updateScriptTags(
+  indexContent: string,
+  nfOptions: NfBuilderSchema,
+) {
   const esmsOptions = {
     shimMode: true,
     ...nfOptions.esmsInitOptions,
   };
 
+  const mainScriptType =
+    esmsOptions.shimMode === false ? "module" : "module-shim";
+
   const htmlFragment = `<script type="esms-options">${JSON.stringify(esmsOptions)}</script>`;
 
   indexContent = indexContent.replace(
     /<script\b(?=[^>]*\bsrc="[^"]*polyfills[^"]*")[^>]*>/,
-    tag =>
+    (tag) =>
       /\btype\s*=/.test(tag)
         ? tag.replace(/\btype\s*=\s*"[^"]*"/, 'type="module"')
-        : tag.replace(/<script\b/, '<script type="module"')
+        : tag.replace(/<script\b/, '<script type="module"'),
   );
   indexContent = indexContent.replace(
     /<script\b(?=[^>]*\bsrc="[^"]*main[^"]*")[^>]*>/,
-    tag =>
+    (tag) =>
       /\btype\s*=/.test(tag)
-        ? tag.replace(/\btype\s*=\s*"[^"]*"/, 'type="module-shim"')
-        : tag.replace(/<script\b/, '<script type="module-shim"')
+        ? tag.replace(/\btype\s*=\s*"[^"]*"/, `type="${mainScriptType}"`)
+        : tag.replace(/<script\b/, `<script type="${mainScriptType}"`),
   );
 
   indexContent = indexContent.replace(/(<body.*?>)/, `$1\n\t\t${htmlFragment}`);
