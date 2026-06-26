@@ -95,6 +95,7 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     loadResultCache: cache.bundlerCache.loadResultCache,
     incremental: true,
     includeTestMetadata: !optimizationOptions.scripts,
+    instrumentForCoverage: builderOptions.instrumentForCoverage,
   };
 
   const stylesheetBundlerOptions: BundleStylesheetOptions & { inlineStyleLanguage: string } = {
