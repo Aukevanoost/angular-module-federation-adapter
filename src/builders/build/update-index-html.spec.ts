@@ -22,6 +22,15 @@ describe('updateScriptTags', () => {
     );
   });
 
+  it('keeps the main script a plain module when shimMode is disabled', () => {
+    const html = '<body><script src="main-XYZ.js"></script></body>';
+    const result = updateScriptTags(html, {
+      esmsInitOptions: { shimMode: false },
+    } as never);
+    expect(result).toContain('<script type="module" src="main-XYZ.js"></script>');
+    expect(result).not.toContain('module-shim');
+  });
+
   it('replaces an existing type attribute rather than appending one', () => {
     const html = '<body><script type="text/javascript" src="main-XYZ.js"></script></body>';
     const result = updateScriptTags(html, nfOptions);
