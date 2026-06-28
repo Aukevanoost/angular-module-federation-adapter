@@ -1,8 +1,7 @@
 # Proposal / Issue: SSR support for `@angular-architects/module-federation-esbuild`
 
-> Status: **deferred to post-v1** (decision 2026-06-28). Spun out of
-> `MODULE_FEDERATION_MIGRATION.md` M4.1 so the migration's remaining-work doc can
-> stay focused on shippable v1 work.
+> Status: **deferred to post-v1** (decision 2026-06-28). See also
+> [Architecture](../architecture.md) and [Constraints & known issues](../known-issues.md).
 > Labels: `enhancement`, `ssr`, `blocked`, `research`
 
 ## Summary
@@ -55,7 +54,7 @@ maps** — the emitted `remoteEntry.js` container calls `importShim.addImportMap
 These still import `initNodeFederation` from
 `@softarc/native-federation-orchestrator/node`, which is **why the `@softarc`
 orchestrator dependency cannot be removed until SSR is redesigned** (see
-`MODULE_FEDERATION_REMAINING_WORK.md`, Blocker B).
+[Constraints & known issues](../known-issues.md)).
 
 ## Already in place
 
