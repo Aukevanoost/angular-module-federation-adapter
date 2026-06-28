@@ -17,7 +17,7 @@ export function generateRemoteMap(workspace: any, projectName: string) {
         project.architect['serve-original']?.options?.port ??
         project.architect.serve?.options?.port ??
         4200;
-      result[strings.camelize(p)] = `http://localhost:${pPort}/remoteEntry.json`;
+      result[strings.camelize(p)] = `http://localhost:${pPort}/mf-manifest.json`;
     }
   }
 

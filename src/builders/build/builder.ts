@@ -279,6 +279,12 @@ export async function* runBuilder(
 
   const externals = getHostExternals(config.shared);
 
+  // Standalone `ng serve` has no MF container to add the shared-deps import map,
+  // so bare externals (`@angular/core`, …) would be unresolvable and the app never
+  // boots. For the dev-serve app build only, bundle them normally instead. The
+  // federation container build below keeps the real `externals`.
+  const appExternals = runViteServer && !!nfBuilderOptions.dev ? [] : externals;
+
   const mfBuilder = await createMfFederationBuilder(
     config,
     fedOptions,
@@ -298,7 +304,7 @@ export async function* runBuilder(
       name: "externals",
       setup(build: PluginBuild) {
         if (build.initialOptions.platform !== "node") {
-          build.initialOptions.external = externals.filter(
+          build.initialOptions.external = appExternals.filter(
             (e) => e !== "tslib",
           );
         }
@@ -432,7 +438,7 @@ export async function* runBuilder(
     ? serveWithVite(
         serverOptions as unknown as Parameters<typeof serveWithVite>[0],
         appBuilderName,
-        createInternalAngularBuilder(externals, {
+        createInternalAngularBuilder(appExternals, {
           instrumentForCoverage: nfBuilderOptions.instrumentForCoverage,
         }),
         context,

@@ -17,7 +17,7 @@ function getFederationArg(
     case "host":
       return JSON.stringify(remoteMap, null, 2).replace(/"/g, "'");
     default:
-      return `{ '${options.project}': './remoteEntry.json' }`;
+      return `{ '${options.project}': './mf-manifest.json' }`;
   }
 }
 

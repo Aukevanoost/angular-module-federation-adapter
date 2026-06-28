@@ -28,6 +28,18 @@ worked around in the codebase:
 between versions — re-verify them whenever the dependency is bumped. A graduation
 to `0.1.x`/`1.x` would be the strongest signal that this risk has eased.
 
+A third defect is **not** worked around, because the fault is entirely inside the
+plugin and the adapter has no hook into it:
+
+- **`ng serve` crashes when script source maps are on** (`Expected ";" but found ":"`
+  at `esm-shares:@angular/core`). When materialising a shared dependency the plugin
+  runs a nested esbuild build and reads `outputFiles[0]`; with source maps on, esbuild
+  emits two output files and `[0]` is the `.js.map`, which is then fed back as JS.
+  Production `ng build` (source maps off) is unaffected. The clean fix is upstream
+  (select the `.js` output, not index 0). Until the pinned `@module-federation/esbuild`
+  is bumped, consumers can either set `"sourceMap": false` for the serve configuration
+  or patch the dependency (e.g. via `patch-package`).
+
 ## The federation build writes to disk (`write: true`)
 
 The MF plugin's `onEnd` reads the emitted container back off disk to inject the
