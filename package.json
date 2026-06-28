@@ -1,6 +1,6 @@
 {
   "name": "module-federation-angular-adapter",
-  "version": "0.2200.0",
+  "version": "0.2200.1",
   "generators": "./collection.json",
   "builders": "./builders.json",
   "schematics": "./collection.json",

@@ -5,8 +5,8 @@ describe('toExposedEntryPoints', () => {
   it('maps each expose to { fileName, outName: key+".js", key }', () => {
     expect(
       toExposedEntryPoints({
-        './Component': { file: './src/app/cmp.ts' },
-        './service': { file: './src/app/svc.ts' },
+        './Component': './src/app/cmp.ts',
+        './service': './src/app/svc.ts',
       })
     ).toEqual([
       { fileName: './src/app/cmp.ts', outName: './Component.js', key: './Component' },

@@ -160,8 +160,11 @@ export async function createAngularEsbuildContext(
     sourcemap: sourcemapOptions.scripts,
     minify: !dev,
     supported: {
-      'async-await': false,
+      // Never set `'async-await': false`: the MF v2 container and
+      // `virtual-share-module:*` wrappers emit top-level await, which esbuild
+      // cannot downlevel when async/await is marked unsupported.
       'object-rest-spread': false,
+      'top-level-await': true,
     },
     splitting: chunks,
     platform: platform ?? 'browser',

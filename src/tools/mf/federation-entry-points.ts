@@ -10,22 +10,15 @@ export interface FederationEntryPoint {
   key?: string;
 }
 
-/** A config `exposes` entry — only the source `file` is needed to build it. */
-export interface ExposeInput {
-  file: string;
-}
-
 /**
- * Derive the side-build entry points from a federation config's `exposes`
- * (M2.1). Mirrors NF's `bundleExposedAndMappings`:
- * `{ fileName: expose.file, outName: key + '.js', key }`. Shared-mappings
- * entries (if still used) are concatenated by the caller.
+ * Derive the side-build entry points from a federation config's `exposes`, whose
+ * values are source-path strings: `{ fileName: sourcePath, outName: key + '.js', key }`.
  */
 export function toExposedEntryPoints(
-  exposes: Record<string, ExposeInput> = {}
+  exposes: Record<string, string> = {}
 ): FederationEntryPoint[] {
-  return Object.entries(exposes).map(([key, expose]) => ({
-    fileName: expose.file,
+  return Object.entries(exposes).map(([key, sourcePath]) => ({
+    fileName: sourcePath,
     outName: key + '.js',
     key,
   }));

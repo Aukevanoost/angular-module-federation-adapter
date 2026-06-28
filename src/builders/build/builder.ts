@@ -26,8 +26,6 @@ import { type JsonObject } from "@angular-devkit/core";
 import {
   createFederationCache,
   type FederationInfo,
-  getExternals,
-  normalizeFederationOptions,
 } from "@softarc/native-federation";
 import {
   AbortedError,
@@ -47,6 +45,8 @@ import {
   createMfFederationBuilder,
   type MfFederationInfo,
 } from "../../tools/mf/build-for-federation.js";
+import { loadFederationConfig } from "../../tools/mf/load-federation-config.js";
+import { getHostExternals } from "./get-externals.js";
 import { getI18nConfig, translateFederationArtifacts } from "./i18n.js";
 import { updateScriptTags } from "./update-index-html.js";
 
@@ -243,49 +243,45 @@ export async function* runBuilder(
     ? browserOutputPath
     : path.join(outputOptions.base, outputOptions.browser, localeFilter[0]!);
 
-  const entryPoints: string[] | undefined =
-    nfBuilderOptions.entryPoints && nfBuilderOptions.entryPoints.length > 0
-      ? nfBuilderOptions.entryPoints
-      : [path.join(path.dirname(federationTsConfig), "src/main.ts")];
-
   const cachePath = getDefaultCachePath(context.workspaceRoot);
-
-  const normalized = await normalizeFederationOptions(
-    {
-      projectName: nfBuilderOptions.projectName,
-      workspaceRoot: context.workspaceRoot,
-      outputPath: browserOutputPath,
-      federationConfig: inferConfigPath(
-        federationTsConfig,
-        context.workspaceRoot,
-        nfBuilderOptions.federationConfigPath,
-      ),
-      tsConfig: federationTsConfig,
-      verbose: ngBuilderOptions.verbose,
-      watch: ngBuilderOptions.watch,
-      dev: !!nfBuilderOptions.dev,
-      entryPoints,
-      buildNotifications: nfBuilderOptions.buildNotifications,
-      cacheExternalArtifacts: nfBuilderOptions.cacheExternalArtifacts !== false,
-    },
-    createFederationCache(cachePath, new SourceFileCache(cachePath)),
+  const federationCache = createFederationCache(
+    cachePath,
+    new SourceFileCache(cachePath),
   );
 
-  checkForInvalidImports(
-    Object.values(normalized.config.sharedMappings),
-    "shared mappings",
+  const config = await loadFederationConfig(
+    context.workspaceRoot,
+    inferConfigPath(
+      federationTsConfig,
+      context.workspaceRoot,
+      nfBuilderOptions.federationConfigPath,
+    ),
   );
-  checkForInvalidImports(Object.keys(normalized.config.shared), "externals");
+
+  // `config.name` is the share scope / manifest id prefix (`<name>:@angular/core`);
+  // fall back to the project name so it's never empty.
+  if (!config.name) {
+    config.name = context.target!.project;
+  }
+
+  checkForInvalidImports(Object.keys(config.shared ?? {}), "externals");
+
+  const fedOptions = {
+    outputPath: browserOutputPath,
+    tsConfig: federationTsConfig,
+    dev: !!nfBuilderOptions.dev,
+    watch,
+    federationCache,
+  };
 
   const start = process.hrtime();
   logger.measure(start, "To load the federation config.");
 
-  const externals = getExternals(normalized.config);
+  const externals = getHostExternals(config.shared);
 
-  // MF side builder (M2.1) — replaces NF's adapter + buildForFederation/rebuildForFederation.
   const mfBuilder = await createMfFederationBuilder(
-    normalized.config,
-    normalized.options,
+    config,
+    fedOptions,
     externals,
     {
       builderOptions: {
@@ -345,7 +341,7 @@ export async function* runBuilder(
       const url = new URL(rawUrl || "/", "http://localhost").pathname;
 
       const fileName = path.join(
-        normalized.options.workspaceRoot,
+        context.workspaceRoot,
         devServerOutputPath,
         url,
       );
@@ -386,12 +382,12 @@ export async function* runBuilder(
     );
   }
 
-  if (fs.existsSync(normalized.options.outputPath)) {
-    fs.rmSync(normalized.options.outputPath, { recursive: true });
+  if (fs.existsSync(browserOutputPath)) {
+    fs.rmSync(browserOutputPath, { recursive: true });
   }
 
-  if (!fs.existsSync(normalized.options.outputPath)) {
-    fs.mkdirSync(normalized.options.outputPath, { recursive: true });
+  if (!fs.existsSync(browserOutputPath)) {
+    fs.mkdirSync(browserOutputPath, { recursive: true });
   }
 
   let federationResult: MfFederationInfo;
@@ -411,7 +407,7 @@ export async function* runBuilder(
   if (nfWatcher) {
     syncNfFileWatcher(
       nfWatcher,
-      normalized.options.federationCache.bundlerCache,
+      federationCache.bundlerCache,
     );
   }
 
@@ -523,7 +519,7 @@ export async function* runBuilder(
               if (nfWatcher) {
                 syncNfFileWatcher(
                   nfWatcher,
-                  normalized.options.federationCache.bundlerCache,
+                  federationCache.bundlerCache,
                 );
               }
 
@@ -595,6 +591,13 @@ export async function* runBuilder(
 
     if (isLocalDevelopment) {
       federationBuildNotifier.stopEventServer();
+    }
+
+    // Angular's CLI leaves the esbuild service child alive after a non-watch
+    // build, so the process never exits. Unref'd: rides the leaked child to
+    // fire, then force-exits. ref: https://github.com/angular/angular-cli/issues/33201
+    if (!watch) {
+      setTimeout(() => process.exit(ngBuildStatus.success ? 0 : 1), 100).unref();
     }
   }
 

@@ -45,10 +45,9 @@ export function makeMainAsync(
       main,
       `${FEDERATION_IMPORT}
 
-initFederation(${federationArg})
-  .catch(err => console.error(err))
-  .then(_ => import('./bootstrap'))
-  .catch(err => console.error(err));
+initFederation(${federationArg});
+
+import('./bootstrap').catch(err => console.error(err));
 `,
     );
   };

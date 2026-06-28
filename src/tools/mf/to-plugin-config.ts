@@ -29,7 +29,7 @@ export interface FederationSharedInput {
   requiredVersion?: string;
   version?: string;
   eager?: boolean;
-  includeSecondaries?: boolean;
+  includeSecondaries?: boolean | { skip?: string | string[] };
 }
 
 function mapShared(shared: FederationConfigInput['shared']): MfShared {
@@ -43,9 +43,9 @@ function mapShared(shared: FederationConfigInput['shared']): MfShared {
       requiredVersion: cfg.requiredVersion ?? '*',
       version: cfg.version,
       eager: cfg.eager,
-      // ✅ Spike-confirmed (finding #4): the esbuild plugin DOES support
-      // `includeSecondaries` — so it maps 1:1, contra M3.1's table.
-      includeSecondaries: cfg.includeSecondaries,
+      // Plugin types narrow to `boolean`, but `getSecondaries` accepts the
+      // `{ skip }` object form too — pass through as-is.
+      includeSecondaries: cfg.includeSecondaries as boolean | undefined,
     };
   }
   return out;

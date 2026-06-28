@@ -5,10 +5,7 @@ import type { FederationCache } from '@softarc/native-federation';
 
 import { normalizeContextOptions } from '../../utils/normalize-context-options.js';
 import { createFederationEsbuildContext } from './federation-side-build.js';
-import {
-  toExposedEntryPoints,
-  type FederationEntryPoint,
-} from './federation-entry-points.js';
+import { toExposedEntryPoints } from './federation-entry-points.js';
 import type {
   FederationConfigInput,
   FederationSharedInput,
@@ -16,20 +13,15 @@ import type {
 import type { NfInternalOptions } from '../../builders/build/schema.js';
 
 /**
- * Minimal normalized-config shape this driver reads. NF's
- * `NormalizedFederationConfig` satisfies it structurally (transitional — Phase 3
- * replaces the config loader with `withModuleFederation`).
+ * The MF config shape emitted by `withModuleFederation`; `exposes` values are
+ * source-path strings. `NormalizedModuleFederationConfig` satisfies it structurally.
  */
 export interface NormalizedConfig {
   name: string;
   filename?: string;
-  exposes?: Record<string, { file: string }>;
+  exposes?: Record<string, string>;
   shared?: Record<string, FederationSharedInput>;
-  sharedMappings?: Record<string, string>;
   remotes?: Record<string, string>;
-  chunks?: boolean;
-  /** NF puts `features` on the config; `optimizedMappings` reads `ignoreUnusedDeps`. */
-  features?: { ignoreUnusedDeps?: boolean };
 }
 
 /** Federation options the builder already computed (subset NF's `fedOptions` provides). */
@@ -49,27 +41,12 @@ export interface MfFederationInfo {
   writtenFiles: string[];
 }
 
-/** Shared-mappings → entry points (mirrors NF's `bundleExposedAndMappings`). */
-function toMappingEntryPoints(
-  sharedMappings: Record<string, string> = {}
-): FederationEntryPoint[] {
-  return Object.entries(sharedMappings).map(([entryPoint, mappedImport]) => ({
-    fileName: entryPoint,
-    outName: mappedImport.replace(/[^A-Za-z0-9]/g, '_') + '.js',
-    key: mappedImport,
-  }));
-}
-
-/** NF normalized config → the MF plugin's `FederationConfigInput` (exposes value → file path). */
+/** MF config → the MF plugin's `FederationConfigInput` (exposes values are already source paths). */
 function toFederationConfigInput(config: NormalizedConfig): FederationConfigInput {
-  const exposes: Record<string, string> = {};
-  for (const [key, expose] of Object.entries(config.exposes ?? {})) {
-    exposes[key] = expose.file;
-  }
   return {
     name: config.name,
     filename: config.filename,
-    exposes,
+    exposes: config.exposes,
     shared: config.shared,
     remotes: config.remotes,
   };
@@ -110,10 +87,7 @@ export async function createMfFederationBuilder(
   externals: string[],
   ctx: BuilderCtx
 ): Promise<MfFederationBuilder> {
-  const entryPoints: FederationEntryPoint[] = [
-    ...toMappingEntryPoints(config.sharedMappings),
-    ...toExposedEntryPoints(config.exposes),
-  ];
+  const entryPoints = toExposedEntryPoints(config.exposes);
 
   const options = normalizeContextOptions(ctx.builderOptions, ctx.context, {
     entryPoints,
@@ -122,10 +96,9 @@ export async function createMfFederationBuilder(
     external: externals,
     dev: !!fedOptions.dev,
     watch: fedOptions.watch,
-    mappedPaths: config.sharedMappings ?? {},
-    chunks: config.chunks,
+    mappedPaths: {},
     hash: !fedOptions.dev,
-    optimizedMappings: !!config.features?.ignoreUnusedDeps,
+    optimizedMappings: false,
     isMappingOrExposed: true,
     cache: fedOptions.federationCache,
   });
