@@ -9,19 +9,19 @@
 import {
   type SkipList,
   DEFAULT_SKIP_LIST,
-} from '@module-federation/esbuild/dist/lib/core/default-skip-list.js';
+} from "@module-federation/esbuild/dist/lib/core/default-skip-list.js";
 
 export const NG_SKIP_LIST: SkipList = [
   ...DEFAULT_SKIP_LIST,
-  '@angular-architects/module-federation-esbuild',
-  '@angular-architects/module-federation-esbuild/config',
-  '@angular-architects/module-federation-esbuild/internal',
-  'zone.js',
-  '@angular/localize',
-  '@angular/localize/init',
-  '@angular/localize/tools',
-  '@angular/router/upgrade',
-  '@angular/common/upgrade',
+  "module-federation-angular-adapter",
+  "module-federation-angular-adapter/config",
+  "module-federation-angular-adapter/internal",
+  "zone.js",
+  "@angular/localize",
+  "@angular/localize/init",
+  "@angular/localize/tools",
+  "@angular/router/upgrade",
+  "@angular/common/upgrade",
   /^@nx\/angular/,
-  (pkg) => pkg.startsWith('@angular/') && !!pkg.match(/\/testing(\/|$)/),
+  (pkg) => pkg.startsWith("@angular/") && !!pkg.match(/\/testing(\/|$)/),
 ];

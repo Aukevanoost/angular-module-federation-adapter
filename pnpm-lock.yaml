@@ -41,9 +41,6 @@ importers:
       '@softarc/native-federation':
         specifier: ^4.0.0
         version: 4.2.0(typescript@6.0.3)
-      '@softarc/native-federation-orchestrator':
-        specifier: ^4.2.2
-        version: 4.3.0
       es-module-shims:
         specifier: ^2.8.0
         version: 2.8.1
@@ -1600,10 +1597,6 @@ packages:
   '@schematics/angular@22.0.3':
     resolution: {integrity: sha512-iAUqIoRcK1CCHDm5E4Q1SI7rpVtsHJ+0qv5ll72wV3C1eCNdeDuGV0lX7PXEEkwd4y//s6yqI9o7f6VZZd6Fbw==, tarball: https://registry.npmjs.org/@schematics/angular/-/angular-22.0.3.tgz}
     engines: {node: ^22.22.3 || ^24.15.0 || >=26.0.0, npm: ^6.11.0 || ^7.5.6 || >=8.0.0, yarn: '>= 1.13.0'}
-
-  '@softarc/native-federation-orchestrator@4.3.0':
-    resolution: {integrity: sha512-PxqFMFA30mgdOi4NTqeqY1xCiBrJLG/p6x+MBjjMi+vhcSr6JdVxuC1aHYQh6qKB54542EmiXqkLgZ61SQYpBQ==, tarball: https://registry.npmjs.org/@softarc/native-federation-orchestrator/-/native-federation-orchestrator-4.3.0.tgz}
-    engines: {node: '>=22.14.0'}
 
   '@softarc/native-federation@4.2.0':
     resolution: {integrity: sha512-KXiirgJy7bLKdWQYxzdljGFT0AEdvHv02QscQXL63r9I1W13gl5sdHFByYJgwZliN0w7uLABq5PJm6M4WB2sTA==, tarball: https://registry.npmjs.org/@softarc/native-federation/-/native-federation-4.2.0.tgz}
@@ -4388,10 +4381,6 @@ snapshots:
       typescript: 6.0.3
     transitivePeerDependencies:
       - chokidar
-
-  '@softarc/native-federation-orchestrator@4.3.0':
-    dependencies:
-      semver: 7.8.5
 
   '@softarc/native-federation@4.2.0(typescript@6.0.3)':
     dependencies:

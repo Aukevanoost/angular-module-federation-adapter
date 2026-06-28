@@ -1,4 +1,4 @@
-# Proposal / Issue: SSR support for `@angular-architects/module-federation-esbuild`
+# Proposal / Issue: SSR support for `module-federation-angular-adapter`
 
 > Status: **deferred to post-v1** (decision 2026-06-28). See also
 > [Architecture](../architecture.md) and [Constraints & known issues](../known-issues.md).
@@ -7,7 +7,7 @@
 ## Summary
 
 Server-side rendering of MF-esbuild remotes has **no proven path today**. This is
-an *architectural* blocker, not merely a missing implementation. v1 ships
+an _architectural_ blocker, not merely a missing implementation. v1 ships
 **CSR-only**; this issue tracks the research + design needed to add SSR later.
 
 ## Background
@@ -38,30 +38,35 @@ maps** — the emitted `remoteEntry.js` container calls `importShim.addImportMap
    loader **before** `@angular/*` was pulled in, resolving shares without a browser
    container. MF-esbuild ships no equivalent.
 
-## What NF did (the three pieces to replace)
+## What NF did (the three pieces to rebuild)
+
+> **Note:** these three files (and the `setNgServerMode` patch below) were **removed**
+> when the adapter went CSR-only, and the `@softarc/native-federation-orchestrator`
+> dependency was dropped with them. The descriptions here are the *spec* for
+> rebuilding the SSR layer — recover the originals from git history if useful.
 
 - **`src/node-preload.ts`** (~161 lines) — a Node `--import` preload that calls
-  `module.register()` to install NF's server-side ESM loader *before* `@angular/*`
+  `module.register()` to install NF's server-side ESM loader _before_ `@angular/*`
   loads, then publishes startup state on two globals
   (`__NF_HOST_SERVER_LOADER__`, `__NF_FEDERATION_STATUS__`) and honours an
   `NF_REQUIRE_REMOTES` env contract. An MF redesign must reproduce the
-  *register-loader-before-Angular* ordering and pick its own status/handshake.
+  _register-loader-before-Angular_ ordering and pick its own status/handshake.
 - **`src/plugin/dev-host-instances-plugin.ts`** (~40 lines) — esbuild `Plugin`
   that injects the dev-only bridge entry into the dev-server build.
 - **`src/tools/ssr/dev-host-instances-entry.ts`** (~150 lines) — the injected
   dev-only singleton-bridge body.
 
-These still import `initNodeFederation` from
-`@softarc/native-federation-orchestrator/node`, which is **why the `@softarc`
-orchestrator dependency cannot be removed until SSR is redesigned** (see
-[Constraints & known issues](../known-issues.md)).
+They imported `initNodeFederation` from
+`@softarc/native-federation-orchestrator/node` — rebuilding SSR must **not**
+reintroduce a hard `@softarc` dependency; pick an MF-native loader (see avenues below).
 
-## Already in place
+## The `ngServerMode` patch (also removed)
 
-- **`setNgServerMode`** is extracted to `src/tools/esbuild/set-ng-server-mode.ts`
-  (migration M2.3) and ready for whichever SSR path. It patches `@angular/core`'s
-  `fesm2022/core.mjs` to infer `ngServerMode` at runtime, because the same shared
-  `@angular/core` bundle serves both browser and server.
+A small `@angular/core` patch (`setNgServerMode`) was previously extracted to infer
+`ngServerMode` at runtime — needed because one shared `@angular/core` bundle serves
+both browser and server. It was removed with the SSR strip; re-add it when building
+SSR. The patch simply prepends one line to `@angular/core`'s `fesm2022/core.mjs`:
+`if (typeof globalThis.ngServerMode === 'undefined') globalThis.ngServerMode = (typeof window === 'undefined');`
 
 ## Proposed research avenues (pick one to prototype)
 
@@ -81,9 +86,10 @@ orchestrator dependency cannot be removed until SSR is redesigned** (see
       **no `ReferenceError: importShim`** and **no `NG0203`** (single Angular
       instance across the SSR boundary).
 - [ ] Dev SSR (`ng serve` with SSR) bridges host singletons to remotes.
-- [ ] The `@softarc/native-federation-orchestrator` dependency is removed (its
-      only remaining users are the three SSR pieces above).
-- [ ] `node-preload` ordering (loader-before-Angular) reproduced for prod SSR.
+- [x] The `@softarc/native-federation-orchestrator` dependency is removed (done —
+      the SSR pieces that used it were stripped for CSR-only v1). Rebuilding SSR must
+      keep it gone — use an MF-native Node loader.
+- [ ] `node-preload`-style ordering (loader-before-Angular) reproduced for prod SSR.
 
 ## Recommendation
 

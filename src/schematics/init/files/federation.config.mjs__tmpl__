@@ -1,4 +1,4 @@
-import { withModuleFederation, shareAll } from '@angular-architects/module-federation-esbuild/config';
+import { withModuleFederation, shareAll } from 'module-federation-angular-adapter/config';
 
 export default withModuleFederation({
   name: '<%=project%>',

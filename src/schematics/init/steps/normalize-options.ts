@@ -105,11 +105,3 @@ export function normalizeOptions(
     port: +(options.port || 4200),
   };
 }
-
-export function isSsrProject(normalized: NormalizedOptions) {
-  return !!normalized.projectConfig?.architect?.build.options?.ssr;
-}
-
-export function getSsrFilePath(normalized: NormalizedOptions): string {
-  return normalized.projectConfig.architect.build.options.ssr.entry;
-}

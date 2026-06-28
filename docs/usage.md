@@ -1,4 +1,4 @@
-# `@angular-architects/module-federation-esbuild`
+# `module-federation-angular-adapter`
 
 An Angular adapter for **Module Federation v2**, built on
 `@module-federation/runtime` + `@module-federation/esbuild`. It lets an Angular app
@@ -8,7 +8,7 @@ webpack/rspack Module Federation hosts.
 > **Status:** the adapter is code-complete and statically verified (typecheck +
 > lint + unit tests). End-to-end behaviour (a running host loading a remote in a
 > browser) is **not yet verified** — see [Constraints & known issues](./known-issues.md).
-> Treat this as the *intended* usage.
+> Treat this as the _intended_ usage.
 
 ---
 
@@ -17,7 +17,7 @@ webpack/rspack Module Federation hosts.
 ### 1. Add the package
 
 ```bash
-ng add @angular-architects/module-federation-esbuild
+ng add module-federation-angular-adapter
 ```
 
 This wires the builder, scaffolds `federation.config.mjs`, makes `main.ts` async,
@@ -26,35 +26,50 @@ and adds `es-module-shims` to the polyfills.
 ### 2. Configure (`federation.config.mjs`)
 
 ```js
-import { withModuleFederation, shareAll } from '@angular-architects/module-federation-esbuild/config';
+import {
+  withModuleFederation,
+  shareAll,
+} from "module-federation-angular-adapter/config";
 
 export default withModuleFederation({
-  name: 'mfe1',
+  name: "mfe1",
 
   // Remotes only: expose modules consumable by hosts.
-  exposes: { './Component': './src/app/app.component.ts' },
+  exposes: { "./Component": "./src/app/app.component.ts" },
 
   shared: {
-    ...shareAll({ singleton: true, strictVersion: true, requiredVersion: 'auto' }),
-    '@angular/core': { singleton: true, strictVersion: true, requiredVersion: 'auto', includeSecondaries: true },
+    ...shareAll({
+      singleton: true,
+      strictVersion: true,
+      requiredVersion: "auto",
+    }),
+    "@angular/core": {
+      singleton: true,
+      strictVersion: true,
+      requiredVersion: "auto",
+      includeSecondaries: true,
+    },
   },
 
-  skip: ['rxjs/ajax', 'rxjs/fetch'],
+  skip: ["rxjs/ajax", "rxjs/fetch"],
 });
 ```
 
 ### 3. Host — load a remote at runtime
 
 ```ts
-import { initFederation } from '@angular-architects/module-federation-esbuild';
+import { initFederation } from "module-federation-angular-adapter";
 
 const { loadRemoteModule } = initFederation({
-  mfe1: 'http://localhost:4201/mf-manifest.json',
+  mfe1: "http://localhost:4201/mf-manifest.json",
 });
 
-const m = await loadRemoteModule('mfe1', './Component');
+const m = await loadRemoteModule("mfe1", "./Component");
 // or lazily, without prior registration:
-await loadRemoteModule({ remoteEntry: 'http://localhost:4201/mf-manifest.json', exposedModule: './Component' });
+await loadRemoteModule({
+  remoteEntry: "http://localhost:4201/mf-manifest.json",
+  exposedModule: "./Component",
+});
 ```
 
 `initFederation(remotes, options?)` is **synchronous** and returns
@@ -74,7 +89,7 @@ Two builds run side by side: Angular's `ApplicationBuilder` for the **app shell*
 and a **separate esbuild side build** (`@module-federation/esbuild`'s
 `moduleFederationPlugin`) for the **federation container** — injected into the same
 Angular compiler context (one pass), so exposed components are compiled by Angular
-*and* federated by MF together.
+_and_ federated by MF together.
 
 ```mermaid
 flowchart TD
@@ -119,15 +134,15 @@ sequenceDiagram
 
 Same overall shape and familiar config helpers — the engine and artifacts change.
 
-| Aspect | Native Federation | This adapter (MF-esbuild) |
-|---|---|---|
-| Runtime | `@softarc/native-federation-orchestrator` | `@module-federation/runtime` (`createInstance`/`loadRemote`) |
-| Build core | `@softarc/native-federation` | `@module-federation/esbuild` `moduleFederationPlugin` |
-| Manifest | `remoteEntry.json` | `remoteEntry.js` + `mf-manifest.json` (MF v2) |
-| Config | `withNativeFederation` / `share` / `shareAll` | `withModuleFederation` / `share` / `shareAll` (same shape) |
-| `initFederation` | returns a `Promise` | **synchronous**; `shimMode`/`sse`/`cacheTag` dropped |
-| Module loader | es-module-shims import maps | **es-module-shims import maps (unchanged)** |
-| Interop | NF hosts only | **stock webpack / rspack MF v2 hosts** |
+| Aspect           | Native Federation                             | This adapter (MF-esbuild)                                    |
+| ---------------- | --------------------------------------------- | ------------------------------------------------------------ |
+| Runtime          | `@softarc/native-federation-orchestrator`     | `@module-federation/runtime` (`createInstance`/`loadRemote`) |
+| Build core       | `@softarc/native-federation`                  | `@module-federation/esbuild` `moduleFederationPlugin`        |
+| Manifest         | `remoteEntry.json`                            | `remoteEntry.js` + `mf-manifest.json` (MF v2)                |
+| Config           | `withNativeFederation` / `share` / `shareAll` | `withModuleFederation` / `share` / `shareAll` (same shape)   |
+| `initFederation` | returns a `Promise`                           | **synchronous**; `shimMode`/`sse`/`cacheTag` dropped         |
+| Module loader    | es-module-shims import maps                   | **es-module-shims import maps (unchanged)**                  |
+| Interop          | NF hosts only                                 | **stock webpack / rspack MF v2 hosts**                       |
 
 The headline: it keeps NF's es-module-shims foundation and familiar config, but
 swaps the orchestrator + manifest for the Module Federation v2 contract — so

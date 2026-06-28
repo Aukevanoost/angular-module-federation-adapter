@@ -40,7 +40,6 @@ import {
   syncNfFileWatcher,
 } from "@softarc/native-federation/internal";
 import { type Plugin, type PluginBuild } from "esbuild";
-import { devHostInstancesPlugin } from "../../plugin/dev-host-instances-plugin.js";
 import { checkForInvalidImports } from "./../../utils/check-for-invalid-imports.js";
 import { federationBuildNotifier } from "./federation-build-notifier.js";
 import type { NfBuilderSchema, NfInternalOptions } from "./schema.js";
@@ -278,8 +277,6 @@ export async function* runBuilder(
   );
   checkForInvalidImports(Object.keys(normalized.config.shared), "externals");
 
-  const activateSsr = nfBuilderOptions.ssr && !nfBuilderOptions.dev;
-
   const start = process.hrtime();
   logger.measure(start, "To load the federation config.");
 
@@ -304,7 +301,7 @@ export async function* runBuilder(
     {
       name: "externals",
       setup(build: PluginBuild) {
-        if (!activateSsr && build.initialOptions.platform !== "node") {
+        if (build.initialOptions.platform !== "node") {
           build.initialOptions.external = externals.filter(
             (e) => e !== "tslib",
           );
@@ -317,35 +314,7 @@ export async function* runBuilder(
       : []),
   ];
 
-  // SSR build fails when externals are provided via the plugin
-  if (activateSsr) {
-    ngBuilderOptions.externalDependencies = externals;
-  }
-
   const isLocalDevelopment = runViteServer && nfBuilderOptions.dev;
-
-  // Dev SSR: inject a bootstrap that inits federation and bridges the host's
-  // singletons to remotes. The plugin self-gates on platform === 'node', so
-  // it's a no-op for CSR dev servers. (Prod SSR registers the loader at launch
-  // via the `node --import .../node-preload` preload — see src/node-preload.ts.)
-  if (isLocalDevelopment) {
-    // The bridge fetches the manifest over HTTP from the dev server's origin
-    // (Vite never writes it to disk under `ng serve`).
-    const devServerOrigin = getDevServerOrigin(serverOptions);
-
-    // The injected bridge (a real, compiled module — see the plugin) reads these
-    // at eval time. `process.env` is process-global, so it crosses the Vite SSR
-    // realm boundary that `globalThis` would not, and mirrors how prod's
-    // node-preload is configured.
-    process.env["NF_DEV_SSR_BROWSER_PATH"] = browserOutputPath;
-    if (devServerOrigin) {
-      process.env["NF_DEV_SSR_ORIGIN"] = devServerOrigin;
-    } else {
-      delete process.env["NF_DEV_SSR_ORIGIN"];
-    }
-
-    plugins.push(devHostInstancesPlugin());
-  }
 
   // Initialize SSE reloader only for local development
   if (isLocalDevelopment && nfBuilderOptions.buildNotifications?.enable) {
@@ -654,25 +623,6 @@ function removeBaseHref(req: { url?: string }, baseHref?: string) {
     url = url.slice(baseHref.length);
   }
   return url;
-}
-
-/**
- * Build the dev server's origin (e.g. `http://localhost:4200`) from the resolved
- * dev-server options, whose `port` Angular's normalizeOptions already defaults.
- * Omits the port when none is set, and returns undefined when there are no serve
- * options at all, so the bridge falls back to the on-disk manifest path.
- */
-function getDevServerOrigin(
-  serverOptions: { ssl?: boolean; host?: string; port?: number } | null,
-): string | undefined {
-  if (!serverOptions) {
-    return undefined;
-  }
-  const protocol = serverOptions.ssl ? "https" : "http";
-  const host = serverOptions.host || "localhost";
-  return serverOptions.port
-    ? `${protocol}://${host}:${serverOptions.port}`
-    : `${protocol}://${host}`;
 }
 
 function getLocaleFilter(

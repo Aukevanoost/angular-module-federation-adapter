@@ -5,33 +5,25 @@ import {
   NodeDependencyType,
 } from '@schematics/angular/utility/dependencies';
 
-export function addDependencies(tree: Tree, context: SchematicContext, ssr: boolean): void {
-  addPackageJsonDependency(tree, {
-    name: 'es-module-shims',
-    type: NodeDependencyType.Default,
-    version: '^2.8.0',
-    overwrite: false,
-  });
+// Runtime dependencies a consuming app needs for Module Federation v2. Pinned to
+// the same versions the adapter is built against to avoid runtime version skew.
+const RUNTIME_DEPENDENCIES: { name: string; version: string }[] = [
+  // The MF-esbuild container shares modules via es-module-shims import maps
+  // (loaded on the page through the polyfills).
+  { name: 'es-module-shims', version: '^2.8.0' },
+  { name: '@module-federation/runtime', version: '2.6.0' },
+  { name: '@module-federation/sdk', version: '2.6.0' },
+  // Imported by the generated container as a bare specifier resolved from the
+  // app's node_modules — undeclared upstream, so it must be listed explicitly.
+  { name: '@module-federation/webpack-bundler-runtime', version: '2.6.0' },
+];
 
-  // Browser-only projects bundle the orchestrator into the app, so a dev
-  // dependency suffices. For SSR it must be a runtime dependency: the generated
-  // server entry imports '@softarc/native-federation-orchestrator/node' as a
-  // bare specifier resolved from node_modules at runtime.
-  addPackageJsonDependency(tree, {
-    name: '@softarc/native-federation-orchestrator',
-    type: ssr ? NodeDependencyType.Default : NodeDependencyType.Dev,
-    version: '^4.2.2',
-    overwrite: true,
-  });
-
-  if (ssr) {
-    console.log('SSR detected ...');
-    console.log('Activating CORS ...');
-
+export function addDependencies(tree: Tree, context: SchematicContext): void {
+  for (const dep of RUNTIME_DEPENDENCIES) {
     addPackageJsonDependency(tree, {
-      name: 'cors',
+      name: dep.name,
       type: NodeDependencyType.Default,
-      version: '^2.8.5',
+      version: dep.version,
       overwrite: false,
     });
   }

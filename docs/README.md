@@ -1,6 +1,6 @@
 # Documentation
 
-Wiki for `@angular-architects/module-federation-esbuild` — an Angular adapter for
+Wiki for `module-federation-angular-adapter` — an Angular adapter for
 **Module Federation v2** built on `@module-federation/runtime` +
 `@module-federation/esbuild`.
 

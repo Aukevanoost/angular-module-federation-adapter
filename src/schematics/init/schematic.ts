@@ -5,8 +5,6 @@ import * as path from 'path';
 import {
   normalizeOptions,
   getWorkspaceFileName,
-  isSsrProject,
-  getSsrFilePath,
 } from './steps/normalize-options.js';
 import { updatePolyfills } from './steps/update-polyfills.js';
 import { generateRemoteMap } from './steps/generate-remote-map.js';
@@ -14,9 +12,6 @@ import { generateFederationConfig } from './steps/generate-federation-config.js'
 import { updateWorkspaceConfig } from './steps/update-workspace-config.js';
 import { addDependencies } from './steps/add-dependencies.js';
 import { makeMainAsync } from './steps/make-main-async.js';
-import { makeServerAsync } from './steps/make-server-async.js';
-import { setServerRenderMode } from './steps/set-server-render-mode.js';
-import { wireServeSsrScript } from './steps/wire-serve-ssr-script.js';
 
 export { updatePackageJson } from './steps/update-package-json.js';
 export { getWorkspaceFileName } from './steps/normalize-options.js';
@@ -66,19 +61,13 @@ export default function config(options: NfSchematicSchema): Rule {
         )
       : noop;
 
-    const ssr = isSsrProject(normalized);
-    const server = ssr ? getSsrFilePath(normalized) : '';
+    updateWorkspaceConfig(tree, normalized, workspace, workspaceFileName);
 
-    updateWorkspaceConfig(tree, normalized, workspace, workspaceFileName, ssr);
-
-    addDependencies(tree, context, ssr);
+    addDependencies(tree, context);
 
     return chain([
       generateRule,
       makeMainAsync(main, options, remoteMap, manifestRelPath),
-      ssr ? makeServerAsync(server, options) : noop(),
-      ssr ? setServerRenderMode(projectSourceRoot) : noop(),
-      ssr ? wireServeSsrScript(projectName) : noop(),
     ]);
   };
 }
