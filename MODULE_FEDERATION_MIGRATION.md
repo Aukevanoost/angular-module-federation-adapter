@@ -255,41 +255,131 @@ exist naturally. See the M0.G verdict for the reasoning.
 Goal: an Angular **host** loads existing MF v2 remotes. This is the core "migrate the
 orchestrator" work and likely the real prize on its own.
 
-- [ ] **[M1.1]** Add deps: `@module-federation/runtime@2.6.0`, `@module-federation/esbuild@0.0.109`,
+- [x] **[M1.1]** Add deps: `@module-federation/runtime@2.6.0`, `@module-federation/esbuild@0.0.109`,
   `@module-federation/sdk@2.6.0`, **and `@module-federation/webpack-bundler-runtime@2.6.0`** (the last is an
   **undeclared** dep the emitted container imports — proven required in the M0.1 spike, Breakage B). Keep
   `runtime`/`sdk`/`webpack-bundler-runtime` on the **same** `2.6.0` (they ship locked; verified 2026-06-28).
   ⚠️ **Keep `es-module-shims`** (finding #6 — MF-esbuild needs it). Stage removal only of `@softarc/native-federation`,
   `@softarc/native-federation-orchestrator` (full removal in Phase 3).
-- [ ] **[M1.2]** Write `src/index.ts` `initFederation()` over `@module-federation/runtime`:
+  - ✅ **Done (2026-06-28).** All four added to `dependencies` via pnpm, **0 peer conflicts**; `0.0.109` is still
+    the npm `latest` dist-tag (dominant 0.0.x risk unchanged). `@softarc/*` kept for now (removed in Phase 3).
+    In-workspace re-verification: `esbuild` resolves to **0.28.1** (matches MF's pin — M0.3 sanity holds);
+    the `./plugin` subpath imports cleanly and exports `moduleFederationPlugin` (+ `createVirtualRemoteModule`,
+    `createVirtualShareModule`). **Breakage A reproduces in the workspace install too** — `import('@module-federation/esbuild/build')`
+    still throws `'json5' does not provide an export named 'parse'`, so we are locked to the `./plugin` subpath
+    (not a spike-only artifact). M0.3's "confirm whether it reproduces inside the workspace" → **yes, it does.**
+- [x] **[M1.2]** Write `src/index.ts` `initFederation()` over `@module-federation/runtime`:
   `createInstance({ name, remotes })` + `registerRemotes(...)`. Use NF's signature
   (`initFederation(remotesOrManifestUrl?, options?)` → `{ loadRemoteModule, ... }`) as the
   *starting shape* for adoption familiarity, but drop NF-only options (`shimMode`) and add
   MF-native ones; design the cleanest surface, don't preserve NF quirks for their own sake.
-- [ ] **[M1.3]** Write `loadRemoteModule()` delegating to runtime `loadRemote(...)`. Keep the
+  - ✅ **Done (2026-06-28).** `src/index.ts` rewritten over `@module-federation/runtime`'s
+    `createInstance({ name, remotes, shared, plugins, shareStrategy })`. **`pnpm typecheck` passes
+    clean** against the real `2.6.0` types. Confirmed-by-types API facts: `UserOptions` =
+    `{ name, remotes: Remote[], shared?, plugins?, shareStrategy?, ... }`; each `Remote` = `{ name, entry }`
+    (`RemoteWithEntry`); `shareStrategy: 'loaded-first'` is a valid `ShareStrategy` (tsc accepted it).
+    Design decisions made: **`initFederation` is synchronous** (MF `createInstance` is sync vs NF's promise —
+    `await` callers still work; endorsed by the doc's "prefer sync + lazy loadRemote"); dropped NF-only
+    `shimMode`/`sse`/`cacheTag`/`logging`; added `runtimePlugins` + `shareScope` + `name`. `remotes` is a
+    `Record<name,entryUrl>` mapped to MF's remotes array; the bare manifest-URL-string form is deferred to M1.7.
+  - ⚠️ **`src/index.spec.ts` is now stale** — it mocks `@softarc/native-federation-orchestrator` and asserts
+    `sse`/`shimMode`, neither of which the new runtime touches. Its rewrite is **M1.7** (as planned); the suite
+    will be red for those cases until then. No other `src/` file changed (the rest still compiles on `@softarc`).
+  - `shared: {}` is intentionally empty here — host `@angular/*`/`rxjs`/`zone.js` singletons land in **M1.4**.
+- [x] **[M1.3]** Write `loadRemoteModule()` delegating to runtime `loadRemote(...)`. Keep the
   useful ergonomics from NF (arg-normalization, `remoteEntry`-only lazy path, `fallback`
   semantics). The module-scoped `federationPromise` (`index.ts:58`) + standalone
   `loadRemoteModule` (`:154`–`:205`) was an NF compromise — and the standalone export is **already
   `@deprecated` in its JSDoc** (`:144`–`:153`) in favour of the instance-returned `loadRemoteModule`.
   That deprecation is a strong signal: in the MF rewrite, prefer dropping the module-scoped promise
   entirely and returning `loadRemoteModule` only from the `initFederation` instance.
-- [ ] **[M1.4]** Register the host's `@angular/*` (+ `rxjs`, `zone.js`) as MF singletons. ⚠️ **Corrected by
+  - ✅ **Done (2026-06-28). typecheck + eslint both clean.** `loadRemoteModule` now delegates to the
+    instance's `mf.loadRemote<T>('<name>/<expose>')` (expose key stripped of leading `./`). All three
+    NF ergonomics preserved: arg-normalization (`(remoteName, exposed)` **or** options object),
+    **lazy `remoteEntry` path** (`mf.registerRemotes([{name, entry}], {force:true})` then load; name
+    resolved from the manifest's `name` via `fetch` when omitted), and `fallback` (truthy-only, logs in
+    browser, rethrows otherwise). MF's `loadRemote` returns `T | null`, so a `null` result is treated as a
+    load failure (→ fallback/throw).
+  - ✅ **Standalone `loadRemoteModule` export + module-scoped state dropped entirely** (the doc's preferred
+    path), since grep proved **no in-`src` consumer** imports it (the `dev-host-instances-entry.ts` /
+    `node-preload.ts` hits use the separate SSR `initNodeFederation` loader, Phase 4). Consumers now
+    destructure `loadRemoteModule` from the `initFederation` return.
+  - ⚠️ **Lazy-path caveat:** the `remoteEntry` URL must point at the JSON **`mf-manifest.json`** (has a
+    top-level `name`, per M0.4), not `remoteEntry.js` (which is executable JS, not fetch-parseable). Documented
+    in the helper. Live `loadRemote` round-trip still pending the browser e2e (es-module-shims) — **M1.7**.
+- [x] **[M1.4]** Register the host's `@angular/*` (+ `rxjs`, `zone.js`) as MF singletons. ⚠️ **Corrected by
   M0.1 finding #6:** this does **not** "replace NF's import-map injection" — MF-esbuild's share scope IS
   implemented *with* es-module-shims import maps (the container's `import-maps-plugin` calls
   `importShim.addImportMap`). So registering singletons here still flows through es-module-shims; the change
   vs NF is the *manifest/registration API*, not the loader. (Maps to research §96 "Register Shared Singletons".)
-- [ ] **[M1.5]** Builder (host path): externalize shared deps from the Angular build (the
+  - ✅ **Done (2026-06-28). typecheck + eslint clean.** `initFederation` now feeds `createInstance({ shared })`
+    a default Angular singleton set, exported as `DEFAULT_ANGULAR_SHARED` (`@angular/core`, `/common`,
+    `/common/http`, `/router`, `/platform-browser`, `rxjs`, `zone.js`), each
+    `{ shareConfig: { singleton: true, strictVersion: true, requiredVersion: false } }`. Caller overrides merge
+    on top (`{ ...DEFAULT_ANGULAR_SHARED, ...options.shared }`) via the new `InitFederationOptions.shared`.
+  - 💡 **Types-confirmed mechanics:** `ShareArgs` accepts the bare `SharedBaseArgs` form (`{ version?, shareConfig? }`,
+    no `get`/`lib`) — so the runtime map only declares the *contract*; the module itself is supplied by the
+    container's es-module-shims import map (finding #6), exactly as the corrected task says. The `shared` option
+    type is derived as `NonNullable<Parameters<typeof createInstance>[0]['shared']>` to avoid importing from the
+    transitive `runtime-core`.
+  - ⚠️ **`requiredVersion: false` is deliberate, interim:** singleton is enforced but the version check is
+    relaxed because resolving the installed version (NF's `requiredVersion: 'auto'`) is **M3.1**'s job
+    (`withModuleFederation` → concrete ranges). When M3.1 lands it should feed real ranges here and flip
+    `strictVersion` to bite. Tracked as the M3.1 ↔ M1.4 seam.
+- [x] **[M1.5]** Builder (host path): externalize shared deps from the Angular build (the
   `externals` plugin in `builders/build/builder.ts:298–313` already does this for NF — re-point
   it at the MF shared set). No container needed for a pure host.
-- [ ] **[M1.6]** ⚠️ **Heavily revised by M0.1 finding #6 — es-module-shims STAYS.** Do **not** delete the
+  - ✅ **MF externals source built (2026-06-28). typecheck + eslint + 3 unit tests green.** New
+    `src/builders/build/get-externals.ts` → `getHostExternals(shared = DEFAULT_ANGULAR_SHARED, extra=[])`,
+    the MF analog of NF's `getExternals` (which is just `[...Object.keys(config.shared),
+    ...sharedMappings, ...externals]`). For a pure host the externalize list = the MF shared keys (sourced
+    from M1.4's `DEFAULT_ANGULAR_SHARED`). Spec at `get-externals.spec.ts`.
+  - 🔗 **Coupling finding — the builder call-site swap moves to M2.1 (deliberate, not skipped).** Proven by
+    reading the builder: line 297 `getExternals(normalized.config)` **and** line 425
+    `buildForFederation(normalized.config, …)` consume the *same* NF `normalized.config`. Re-pointing only the
+    externals to MF in isolation would make the host externalize deps the NF side-build doesn't provide →
+    broken bootstrap. So the externals source and the side-build's `shared` must flip to MF **together**, which
+    is exactly M2.1's `buildForFederation`→`moduleFederationPlugin` swap. The externalization *mechanism* (the
+    esbuild `external` plugin, 298–308) is artifact-agnostic and verified to survive unchanged; only its input
+    source moves. Wire `getHostExternals` into builder.ts:297 as part of M2.1.
+- [x] **[M1.6]** ⚠️ **Heavily revised by M0.1 finding #6 — es-module-shims STAYS.** Do **not** delete the
   shim loader. MF-esbuild's runtime depends on `importShim` (`ReferenceError` without it). What you *can* still
   drop is the NF-specific *orchestration* of it: the NF-only `useShimImportMap`/`useDefaultImportMap` helpers and
   the `InitFederationOptions.shimMode` option (MF manages the import map internally via `import-maps-plugin`).
   Keep `es-module-shims` as a dependency and keep loading it on the page (M2.5/polyfills). The
   `vite:import-analysis`/`es-module-shims` stderr filter (`builder.ts:64`) likely still applies — re-verify, don't
   delete blindly. Net: this task shrinks from "remove the shim layer" to "stop hand-managing import maps".
-- [ ] **[M1.7]** Tests: port/extend `src/index.spec.ts` for the MF runtime. Add an e2e: Angular
+  - ✅ **Done / verified (2026-06-28).** The runtime-side orchestration was already removed by the M1.2
+    rewrite: `index.ts` no longer imports `useShimImportMap`/`useDefaultImportMap` (they were
+    `@softarc/native-federation-orchestrator/options` imports) and `InitFederationOptions.shimMode` is gone —
+    grep finds only doc comments noting the removal. No new code needed; this task was a verify-and-confirm.
+  - ✅ **es-module-shims kept** (still a dependency and still referenced by `add-dependencies`,
+    `update-polyfills`, `update-index-html`, the `remove` schematic, and `builder.ts`) — per finding #6.
+  - ✅ **stderr filter re-verified, NOT deleted** (`builder.ts:62–69`): it suppresses Vite's
+    `vite:import-analysis` + `es-module-shims.js` warnings under `ng serve`. es-module-shims still loads, so the
+    noise still occurs → the filter still applies. Kept.
+  - ➡️ **Build-side esms plumbing is out of scope here:** the remaining `shimMode`/`esmsInitOptions` live in
+    `update-index-html.ts` (`<script type="esms-options">`, `module-shim` rewrites) + `schema.d.ts` — that is
+    **M2.5**, and per finding #6 most of it stays.
+- [~] **[M1.7]** Tests: port/extend `src/index.spec.ts` for the MF runtime. Add an e2e: Angular
   host consumes a webpack/rspack-built MF remote.
+  - ✅ **Unit spec rewritten & green (2026-06-28) — 13 tests, lint + typecheck clean; full suite 97/97.**
+    `src/index.spec.ts` now mocks `@module-federation/runtime`'s `createInstance` (NF-orchestrator mocks
+    deleted) and covers: instance creation (default `host` name, `loaded-first` strategy), remotes record →
+    `{name,entry}` mapping, `DEFAULT_ANGULAR_SHARED` registration + caller-override merge, `runtimePlugins`/
+    custom name pass-through, manifest-URL-string rejection, `loadRemoteModule` (`<name>/<expose>` id with `./`
+    stripped, options-object form, `null`→failure, truthy `fallback`, **lazy `remoteEntry`** fetch→register→load),
+    and that the standalone `loadRemoteModule` export is gone. **No sibling spec regressed** (97/97 across 15 files).
+  - ⚠️ **E2e blocked on environment, NOT skipped.** The "Angular host consumes a webpack/rspack remote" e2e
+    needs a **browser + es-module-shims + a real Angular app** — none exist in this sandbox (same constraint that
+    deferred M0.2). This e2e is where the **M0.2/M0.G single-instance `NG0203` verdict is finally cashed out**.
+    Recipe for whoever runs it (Playwright / `@web/test-runner`, host + a stock webpack MF remote):
+    1. `initFederation({ remote: 'http://…/mf-manifest.json' })`, then `loadRemoteModule('remote', './Cmp')` and
+       bootstrap the returned standalone component into the host.
+    2. **Pass:** clean render, host & remote observe the **same** `@angular/core` identity (assert a symbol pinned
+       on a core export, or a root-provided service is the same instance across the boundary).
+    3. **FAIL = late gate failure:** `NG0203` / two `ɵɵdefineInjectable` registrations → two Angular copies →
+       reassess (per the M0.G verdict's explicit "if M1.7 shows NG0203, treat as a late gate failure").
 
 **Target `src/index.ts` API sketch (M1.2/M1.3 working draft).** Keeps NF's call shape for adoption
 familiarity, drops `shimMode`/import-map options, and returns `loadRemoteModule` from the instance
@@ -325,7 +415,16 @@ export function initFederation(
 
 **Gate [M1.G]:** Angular host loads a third-party MF v2 remote (CSR), single Angular instance,
 public API unchanged. Ship this as a standalone deliverable.
-- [ ] Gate passed + note
+- [~] **CONDITIONAL — code-complete & unit-verified; empirical CSR-load blocked on browser env (2026-06-28).**
+  All Phase-1 runtime tasks done (M1.1–M1.6) with the call-site externals swap correctly parked in M2.1 (M1.5).
+  `src/index.ts` is a complete MF rewrite: `pnpm typecheck`, `eslint`, and the **full 97-test suite pass**, and the
+  public API shape is preserved (`initFederation` → `{ loadRemoteModule, instance }`) minus the intentionally
+  dropped NF-only options. **What's NOT yet empirically proven:** the live host-loads-remote CSR render +
+  single-`@angular/core`-instance check — it requires a browser + es-module-shims + Angular, absent here, and is
+  authored as the M1.7 e2e recipe. Per the M0.G verdict this is *execution-environment* missing, not a technical
+  blocker; **if that e2e shows `NG0203`, this is a late gate failure → reassess before Phase 2 ships.** Phase 2
+  build work (which doesn't need the browser) may proceed in parallel; do not *publish* the Phase-1 deliverable
+  until the e2e is green.
 
 ---
 
@@ -341,23 +440,168 @@ Goal: Angular **produces** remotes consumable by any MF v2 host.
 > applied to **both** or the remote builder silently keeps calling NF. The remote path also has
 > its own helpers: `builders/remote/{change-watcher,resolve-ng-options,infer-config-path,assets}.ts`.
 
-- [ ] **[M2.1]** Wire the side esbuild build with `moduleFederationPlugin({ name, filename,
+- [x] **[M2.1]** Wire the side esbuild build with `moduleFederationPlugin({ name, filename,
   exposes, shared })`, replacing the `buildForFederation`/`rebuildForFederation` calls in
   **both** builders: `build/builder.ts:425` & `:551`, and `remote/builder.ts:125` & `:172`.
   Drive it from the same orchestration loop.
-- [ ] **[M2.2]** Emit `remoteEntry.js` + `mf-manifest.json` into Angular's browser output dir
+  - ✅ **DONE — both builders wired (2026-06-28). typecheck + eslint clean; full suite 106 green.** Both
+    `runBuilder` (`build/builder.ts`) and `runRemoteBuilder` (`remote/builder.ts`) now drive the stateful
+    `createMfFederationBuilder` (`build()` / `rebuild(changedFiles)` / idempotent `dispose()`), and the NF
+    imports (`buildForFederation`/`rebuildForFederation`/`setBuildAdapter`/`createAngularBuildAdapter`) are gone
+    from both. Build builder specifics handled: the `#47` pre-app-build dispose → `mfBuilder.dispose()` (made
+    **idempotent** since the final `finally` disposes again in non-watch); the **i18n cascade** bridged via a
+    transitional `toFederationInfoForI18n()` shim (keeps `translateFederationArtifacts` + its 8-test spec
+    unchanged — full per-locale MF i18n is **M4.2**). `createAngularBuildAdapter` is now referenced nowhere in
+    production → **M2.3 factory deletion unblocked.** ⚠️ **Runtime artifact emit unverified** (no Angular app —
+    the live proof is the M2.G gate / M1.7-class e2e); the wiring is static-verified (typecheck/lint/suite).
+  - ✅ **Build mechanism re-proven in-workspace (2026-06-28)** — the M0.1 spike was deleted, so re-ran
+    `moduleFederationPlugin@0.0.109` + esbuild `0.28.1` against the repo's own `node_modules`: emits
+    `remoteEntry.js` + `mf-manifest.json` at **0 errors / 0 warnings**, manifest matches M0.4 exactly,
+    `remoteEntry.js` contains `importShim`/`import-maps-plugin` (**finding #6 re-confirmed**), and the build
+    only links because `@module-federation/webpack-bundler-runtime` resolves (**Breakage B re-confirmed** →
+    validates M1.1).
+  - ✅ **Config half done: `src/tools/mf/to-plugin-config.ts` → `toMfPluginConfig()`** maps a normalized
+    federation config → the plugin's `NormalizedFederationConfig` (`name`/`filename`/`exposes`/`shared`/
+    `remotes`). 5 unit tests; typecheck + eslint clean. Input shape declared **locally** (not imported from
+    `@softarc`) so it survives Phase-3 NF removal. **Mapping nuances captured:** the plugin's
+    `NormalizedSharedConfig.requiredVersion` is a **required `string`** (no `false`, unlike the runtime's
+    `false|string`) → unresolved falls back to `'*'`; and the plugin **natively supports `includeSecondaries`**
+    (re-confirms finding #4 — update M3.1's table, which calls it "no equivalent" in places).
+  - 🧩 **Architectural finding that scopes the remainder — M2.1 must compose with M2.3.** esbuild +
+    `moduleFederationPlugin` alone **cannot compile Angular** (templates/decorators/DI); NF's
+    `buildForFederation` ran the Angular compiler via `createAngularBuildAdapter` *then* bundled. So the MF side
+    build = **Angular compiler plugin + `moduleFederationPlugin`** in one `esbuild.build`. The compiler-plugin
+    extraction is exactly M2.3's "keep what the side build still needs".
+  - 🔑 **KEYSTONE — composition is ONE-PASS, and the injection seam already exists (2026-06-28).** Read the
+    plugin source (`adapters/lib/plugin.js`, 340 lines). `moduleFederationPlugin.setup(build)` mutates the host
+    context: `initialOptions.metafile = true`, **unions the config externals into `initialOptions.external`**,
+    and consumes `initialOptions.entryPoints` as the container/app entry. Its nested `esbuild.build` (the
+    `cjsToEsmPlugin`, namespace `esm-shares`) **explicitly overrides `plugins: [commonjs()]`** for the
+    shared-package sub-build — so the Angular compiler plugin does **NOT** run twice (only shared deps get the
+    nested commonjs pass). **And `createAngularEsbuildContext` (`angular-bundler.ts:162`) already appends
+    `...customPlugins` (from `builderOptions.plugins`) to its esbuild `plugins`.** ⇒ The driver injects
+    `moduleFederationPlugin(toMfPluginConfig(cfg))` into the *existing* Angular context — minimal surgery, not a
+    second build. The two-pass (compile-then-federate) alternative is unnecessary and is rejected.
+  - 📌 **Open implementation detail → M2.2:** the Angular context uses `write:false` + `writeResult`, but the MF
+    plugin writes `mf-manifest.json` itself in `onEnd` (M0.1 finding #1). Reconcile by pointing the context
+    `outdir` at `browserOutputPath`; the context's flat `entryNames` (`'[name]'`/`'[name]-[hash]'`,
+    `angular-bundler.ts:146`) + `out: path.parse(ep.outName).name` already avoid the probe's absolute-path dir
+    mirroring. Verify the plugin honors `write:false` or writes to `outdir` directly.
+  - ✅ **Driver built & type-checked (2026-06-28).** `createAngularEsbuildContext` gained an optional
+    `extraPlugins` param (`angular-bundler.ts` — appended after the compiler plugin, backward-compatible).
+    `src/tools/mf/federation-plugin.ts` → `createFederationPlugin(cfg, filename?)` wraps
+    `toMfPluginConfig` + `moduleFederationPlugin` into an injectable esbuild `Plugin` (no cast needed — the
+    plugin's return type *is* assignable to esbuild's `Plugin`; verified by tsc). `src/tools/mf/federation-side-build.ts`
+    → `createFederationEsbuildContext(options, cfg)` = the one-pass context. **typecheck + eslint clean; 7 mf-tests
+    green** (full suite now 104). This proves the composition is *type-correct* against the real
+    `@angular/build/private` + MF plugin types.
+  - 🔑 **SCOPING FINDING — the orchestration is far smaller than NF's (2026-06-28, read NF
+    `build-for-federation.js` + `bundle-exposed-and-mappings.js`).** NF's `buildForFederation` runs four shared-
+    bundling phases — `bundleShared` (browser/node) + `bundleSeparatePackages` (browser/node) via `splitShared`
+    — that **manually bundle each shared npm package into the import map**. **`moduleFederationPlugin` makes all
+    four unnecessary** (it owns shared resolution internally via the `import-maps-plugin` + virtual share modules,
+    finding #6). So the MF orchestration collapses to NF's **`bundleExposedAndMappings` step only**: derive
+    `entryPoints` and run the (now MF-augmented) Angular esbuild context. Exact entry derivation to mirror:
+    `exposes` → `{ fileName: expose.file, outName: key + '.js', key }` per `config.exposes`, plus shared-mappings
+    entries; then one `createFederationEsbuildContext(...)` build. The MF plugin emits `remoteEntry.js` +
+    `mf-manifest.json`; the exposed chunks are written via `writeResult`.
+  - 🧹 **Knock-on dead code:** the adapter's `else` branch — `createNodeModulesEsbuildContext` /
+    `node-modules-bundler.ts` — IS NF's shared-package bundler (the `node-shared`/`browser-shared` path). Since
+    MF owns shared bundling, **that path and module become dead** and drop with the factory (fold into M2.3 /
+    M3.5 cleanup). `bundle-shared.ts` likewise.
+  - ✅ **Entry-point derivation landed (2026-06-28):** `src/tools/mf/federation-entry-points.ts` →
+    `toExposedEntryPoints(exposes)` (`{ fileName: expose.file, outName: key+'.js', key }`), local type
+    structurally assignable to NF's `EntryPoint`. 2 tests; typecheck + eslint clean (suite now 106).
+  - ✅ **Orchestration `buildForFederationMf` written & type-checked (2026-06-28).**
+    `src/tools/mf/build-for-federation.ts`: derives entry points (`toMappingEntryPoints` +
+    `toExposedEntryPoints`), reuses `normalizeContextOptions` with field values **mirroring NF's
+    `bundleExposedAndMappings` exactly** (`outdir: outputPath`, `tsConfigPath: tsConfig`, `hash: !dev`,
+    `optimizedMappings: features.ignoreUnusedDeps`, `cache: federationCache`) → correct-by-construction, then
+    `createFederationEsbuildContext` → `rebuild()` → `writeResult`, returning `MfFederationInfo {name, exposes,
+    writtenFiles}`. Also **extracted `writeResult`** to the survivable `tools/esbuild/write-result.ts` (like
+    `setNgServerMode`) and removed it + now-dead `fs`/`path` imports from the adapter. typecheck + eslint clean;
+    **full suite 106 green** (adapter refactor caused no regression).
+  - ✅ **Refactored to a STATEFUL builder (2026-06-28)** — `createMfFederationBuilder(...)` returns
+    `{ build, rebuild(modifiedFiles), dispose }`, holding one esbuild `BuildContext` across rebuilds. This is the
+    correct shape for **both** call sites' lifecycle (initial build + watch-loop rebuild + dispose), mirroring
+    NF's adapter — so it covers `rebuildForFederation` and preserves `ng serve` incremental DX (**M2.6**), not
+    just the initial build. `rebuild` invalidates changed files via `cache.bundlerCache.invalidate` (typecheck
+    confirms the method exists). `buildForFederationMf` kept as a one-shot (create→build→dispose) for non-watch.
+    typecheck + eslint clean.
+  - ✅ **Remote builder WIRED (2026-06-28) — first real call-site swap.** `runRemoteBuilder`
+    (`remote/builder.ts`) now drives `createMfFederationBuilder` (`build()` initial, `rebuild(changedFiles)` in
+    the watch loop, `dispose()` in `finally`); dropped the `setBuildAdapter`/`buildForFederation`/
+    `rebuildForFederation`/`createAngularBuildAdapter` imports + the adapter creation. **typecheck + eslint clean;
+    full suite 106 green, no regression.** Fixed a real bug found while wiring: `optimizedMappings` reads
+    `config.features.ignoreUnusedDeps` (not `fedOptions`), mirroring NF. `tsConfig` made optional to match NF's
+    `string|undefined`. ⚠️ runtime emit still unverified (no Angular app — M1.7-class limit).
+  - **REMAINING M2.1 step — wire the BUILD builder (`build/builder.ts:425` build, `:551` rebuild):** this is the
+    one with the i18n cascade — This is a *coordinated* change, not a drop-in, because it
+    cascades: (a) `MfFederationInfo` ≠ NF's `FederationInfo`, so the `translateFederationArtifacts(…,
+    federationResult)` i18n call (`build/builder.ts:452`) must move to MF shape → **couples with M4.2**; (b) the
+    `createAngularBuildAdapter`/`setBuildAdapter` path (`:218`) becomes unused → **delete with M2.3**; (c) fold in
+    `getHostExternals` (M1.5); (d) add a `rebuildForFederationMf` (incremental `ctx.rebuild()` reuse). A half-swap
+    breaks typecheck, so it must land atomically with the M2.2/M2.3/M4.2 touches. ⚠️ **runtime emit only
+    verifiable with a real Angular app** (absent here — same limit as the M1.7 e2e).
+- [x] **[M2.2]** Emit `remoteEntry.js` + `mf-manifest.json` into Angular's browser output dir
   (`browserOutputPath`, `builder.ts:246`). Reconcile MF's output naming/hashing with Angular's
   layout (`outputOptions`, `:227`).
-- [ ] **[M2.3]** Retire `tools/esbuild/angular-esbuild-adapter.ts` and `setBuildAdapter` — the MF
+  - 🔑 **Correctness finding + fix (2026-06-28): the MF plugin does NOT honor esbuild `write:false`.** Read
+    the plugin's `onEnd`: it `fs.readFileSync`s the emitted **container off disk** to inject the exposed module
+    map (`"__MODULE_MAP__"` → `exposedEntries`) then `fs.writeFileSync`s it, and calls `writeRemoteManifest`.
+    Under the Angular context's original `write:false` (outputs in memory, written later by `writeResult`) that
+    `readFileSync` would crash at runtime. **Fix:** added a `write` override to `createAngularEsbuildContext`
+    (default `false` for the NF adapter path) and set **`write:true`** in `createFederationEsbuildContext`. Now
+    esbuild writes the exposed chunks + container + `mf-manifest.json` directly to `outdir`; `buildForFederationMf`
+    collects emitted files from `result.metafile.outputs` (no `writeResult` needed under `write:true`).
+  - ✅ **Emit + naming reconciled:** `outdir` = `fedOptions.outputPath` = `browserOutputPath` (driver wiring);
+    flat `entryNames` (`'[name]'` dev / `'[name]-[hash]'` prod) + `out: parse(outName).name` avoid dir-mirroring;
+    `remoteEntry.js` fixed name, `mf-manifest.json` written by the plugin. typecheck + eslint clean; suite 106.
+    ⚠️ **Runtime emit unverified** (no Angular app — M2.G/M1.7-class e2e).
+- [x] **[M2.3]** Retire `tools/esbuild/angular-esbuild-adapter.ts` and `setBuildAdapter` — the MF
   plugin owns the side build now. The concrete thing to drop is the **`createAngularBuildAdapter`
   factory** (`:62`), which returns the NF-typed `NFBuildAdapter` contract (`NFBuildAdapter` is an
   imported *type* from `@softarc/native-federation`, not a local symbol). Keep only what the side
   build still needs from `tools/esbuild/*` (tsconfig creation, shared-mappings if still relevant).
   ⚠️ `setNgServerMode` (`:45`) is a **private, non-exported** function called from inside the factory
   (`:100`); Phase 4 SSR (M4.1) wants to reuse it, so extract/re-export it before deleting the factory.
-- [ ] **[M2.4]** Re-point the dev-server middleware (`builder.ts:352–401`) to serve
+  - ✅ **Extract-before-delete done (2026-06-28). typecheck + eslint + 8 adapter tests green.**
+    `setNgServerMode` moved verbatim to its own **survivable** module `src/tools/esbuild/set-ng-server-mode.ts`
+    (now `export`ed); the adapter imports it. So when the factory file is deleted, the SSR patch M4.1 needs
+    still exists. Behavior unchanged (the @angular/core `fesm2022/core.mjs` runtime-ngServerMode patch).
+  - 📋 **Audit of `tools/esbuild/*` (keep vs drop), needed by M2.1's driver:**
+    - **KEEP (the MF side build reuses these as the Angular compiler half):** `angular-bundler.ts`
+      (`createAngularEsbuildContext` — the Angular compiler context/plugin), `node-modules-bundler.ts`,
+      `create-federation-tsconfig.ts`, `shared-mappings-plugin.ts`, `create-awaitable-compiler-plugin.ts`,
+      `normalize-context-options.ts`, and the `writeResult` helper (generic outdir writer).
+    - **DROP with the factory:** `createAngularBuildAdapter` itself + its `@softarc/native-federation` type
+      imports (`NFBuildAdapter`/`NFBuildAdapterResult`/`NFBuildAdapterOptions`/`NFBuildAdapterContext`/
+      `FederationCache`).
+  - ✅ **Factory + dead NF bundlers DELETED (2026-06-28).** After both builders were wired (M2.1), removed
+    `angular-esbuild-adapter.ts` (+ spec) and `node-modules-bundler.ts` (+ spec — NF's shared-package bundler /
+    `createNodeModulesEsbuildContext`, dead under MF since the plugin owns shared bundling). Also dropped the
+    now-dead `write-result.ts` (the driver derives written files from `metafile` under `write:true`, M2.2) and
+    the unused one-shot `buildForFederationMf`. **typecheck + eslint clean; suite 92 green** (−14 from the two
+    deleted specs). `knip` now reports only: `set-ng-server-mode.ts` (**intentionally pending M4.1 SSR** — the
+    extract-before-delete) and `@module-federation/sdk`/`webpack-bundler-runtime` (**false positives** — the
+    latter is imported by the *generated container*, not our source; a `knip.json` ignore is **M3.5**).
+  - ⚠️ **Runtime risk recorded (ties to M0.3):** NF's deleted `createNodeModulesEsbuildContext` ran Angular
+    **partial-ivy linking** (`requiresLinking`) when bundling shared libs. MF's nested shared build is
+    **commonjs-only** (`cjsToEsmPlugin`), with no linking step — so whether shared **partial-ivy Angular libs**
+    (e.g. `@angular/material`) link correctly under MF is an **open runtime question**, unverifiable here.
+    Re-check when a real Angular build with a shared component lib runs (Phase 2 e2e / M2.G).
+- [x] **[M2.4]** Re-point the dev-server middleware (`builder.ts:352–401`) to serve
   `remoteEntry.js` + MF chunks with CORS (logic survives; only filenames change).
-- [ ] **[M2.5]** Update `index.html` script wiring: `update-index-html.ts` `updateScriptTags` (`:32`)
+  - ✅ **Verified — NO code change needed (2026-06-28).** The middleware is **fully artifact-agnostic**: it
+    serves *any* file that exists under `devServerOutputPath` by URL→`fs` lookup, with CORS
+    (`Access-Control-Allow-Origin: *`, `GET` allowed) and `mrmime` content-types. There are **zero hardcoded
+    filenames** (`grep` confirms the only `remoteEntry`/`mf-manifest` mention in `builder.ts` is the i18n shim's
+    doc comment) — so the doc's "only filenames change" was an overestimate; nothing is coupled to NF's
+    `remoteEntry.json`. It already serves `remoteEntry.js` + `mf-manifest.json` + MF chunks unchanged. Confirmed
+    `mrmime`: `.js → text/javascript`, `.json → application/json` (correct for both artifacts). The MF side build
+    writes these to `outdir` (= `browserOutputPath` = `devServerOutputPath`) under `write:true` (M2.2), so the
+    middleware finds them on disk. ⚠️ end-to-end serve unverified without a running `ng serve` (M2.G).
+- [x] **[M2.5]** Update `index.html` script wiring: `update-index-html.ts` `updateScriptTags` (`:32`)
   injects an `<script type="esms-options">` tag (`:44`, `shimMode: true` by default) and rewrites the
   `polyfills` (`:47`) and `main` (`:54`) script tags to `type="module"` / `type="module-shim"` — all
   es-module-shims plumbing. ⚠️ **Reassessed after finding #6:** since es-module-shims STAYS, most of this
@@ -365,25 +609,66 @@ Goal: Angular **produces** remotes consumable by any MF v2 host.
   Likely keep the `esms-options` tag and the `module-shim` rewrites; the change is reconciling `shimMode` and
   any MF-specific bootstrap, not removing the tags. Verify against a real MF host before editing; update
   `update-index-html.spec.ts` accordingly.
-- [ ] **[M2.6]** Preserve incremental rebuild DX: `RebuildQueue` + `createNfWatcher` watch sync
+  - ✅ **Verified — plumbing STAYS, no code change (2026-06-28).** `updateScriptTags` is **pure es-module-shims
+    wiring** with **zero federation-artifact coupling** (no `remoteEntry.json`/manifest names) — it only injects
+    `<script type="esms-options">{shimMode:true,…}</script>` and rewrites polyfills→`module` / main→`module-shim`.
+    Per finding #6 this is exactly what MF-esbuild needs (its container calls `importShim.*`), so it carries over
+    unchanged; the 9-test `update-index-html.spec.ts` stays green (no edit). The doc's "don't edit before
+    verifying against a real MF host" → honored: no blind change.
+  - ⚠️ **One MF-specific decision deferred to real-host verify (M2.G):** the container **hardcodes
+    `importShim.addImportMap`** (shim-mode API), so `shimMode:true` (default) is right for MF. Whether NF's
+    `shimMode:false` *native import-map* escape hatch (#70) is even viable under MF is unverified — it may need
+    to be **rejected/removed** for MF. Re-evaluate with a running MF host; if removed, update `schema`/`esmsInitOptions`.
+  - 🧹 The NF type import `FederationOptions` from `@softarc/native-federation` (`:3`) is transitional → **M3.5**.
+- [x] **[M2.6]** Preserve incremental rebuild DX: `RebuildQueue` + `createNfWatcher` watch sync
   (`builder.ts:495–626`) must drive the MF side build's rebuilds, or `ng serve` DX regresses.
-- [ ] **[M2.7]** SSE reload path: **mostly survives the swap unchanged** — verified, lower risk than
+  - ✅ **Preserved by the M2.1 wiring — verified (2026-06-28).** The entire orchestration (`RebuildQueue`,
+    `createNfWatcher`/`changeWatcher`, `syncNfFileWatcher`, the interrupt/abort flow) was kept untouched; only the
+    inner build call was swapped to `mfBuilder.rebuild(changedFiles)`. **Build builder:** `nfWatcher.get()` →
+    `changedFiles` → `mfBuilder.rebuild` → `syncNfFileWatcher(nfWatcher, federationCache.bundlerCache)`, inside
+    `rebuildQueue.track`. **Remote builder:** `changeWatcher.pendingPaths` → `mfBuilder.rebuild` →
+    `syncNfFileWatcher`, inside `rebuildQueue.track`. The cache `mfBuilder.rebuild` invalidates
+    (`options.cache.bundlerCache`) **is the same** `federationCache.bundlerCache` the watcher syncs → consistent
+    incremental state. The stateful builder holds one esbuild context across rebuilds (fast incremental).
+  - ⚠️ **Minor DX caveat (noted at the remote call site):** NF's `rebuildForFederation` took an `AbortSignal` for
+    *mid-build* cancellation; `mfBuilder.rebuild` doesn't thread it into `ctx.rebuild()` (esbuild rebuilds aren't
+    abortable mid-flight). Queue-level interruption (folding a newer change) still works via `rebuildQueue.track`.
+    Runtime incremental correctness (esbuild context reuse + MF plugin re-emit per rebuild) deferred to M2.G.
+- [x] **[M2.7]** SSE reload path: **mostly survives the swap unchanged** — verified, lower risk than
   it reads. `federation-build-notifier.ts` is an artifact-*agnostic* SSE manager (`text/event-stream`
   connection pool) that just signals "rebuild happened, reload" — no artifact name baked in.
   `setup-builder-env-variables.ts` only sets `NG_BUILD_PARALLEL_TS=0` (an Angular build tweak,
   **unrelated** to federation artifacts or SSE — was miscategorized here). The only artifact-coupled
   piece is `update-index-html.ts` (covered by M2.5). Net: re-point nothing here except confirm the
   notifier still fires after the MF side build completes.
+  - ✅ **Confirmed — no code change (2026-06-28).** `federation-build-notifier.ts` grep-verified
+    artifact-agnostic (no `remoteEntry`/`mf-manifest`/filename refs). Lifecycle intact in the build builder:
+    `initialize` + `createEventMiddleware` (SSE setup), `broadcastBuildCompletion` (`:583`) fires in the success
+    path **right after `mfBuilder.rebuild`** (`:552`), with `broadcastBuildCancellation`/`broadcastBuildError`
+    in the catch and `stopEventServer` in cleanup. Initial `mfBuilder.build` needs no broadcast (fresh page
+    load); rebuilds broadcast → browser reload. `setup-builder-env-variables.ts` (`NG_BUILD_PARALLEL_TS=0`)
+    confirmed unrelated. The SSE reload signal survives the swap.
 
 **Gate [M2.G]:** Angular-built remote (CSR) is consumed by a stock webpack/rspack MF host;
 `ng serve` rebuilds the remote on change.
-- [ ] Gate passed + note
+- [~] **CONDITIONAL — code-complete & static-verified; live consume/serve blocked on a real Angular app (2026-06-28).**
+  All Phase-2 tasks done (M2.1–M2.7): both builders drive the MF side build (`createMfFederationBuilder`), the NF
+  build engine + its dead code are gone, artifacts emit to `browserOutputPath` (`write:true`), the dev-server
+  middleware (CORS) + SSE notifier + rebuild DX are preserved, and index-html es-module-shims wiring stays
+  (finding #6). **typecheck + eslint + knip(expected-only) clean; suite 92 green.** Mirrors the M0.G/M1.G
+  pattern: the *code* is complete and statically verified, but the **empirical proof** — an Angular-built CSR
+  remote consumed by a stock webpack/rspack host + `ng serve` incremental rebuild — needs a real Angular
+  workspace + browser, absent in this sandbox. **Carried-forward runtime risks to check in that e2e:** (a) the
+  one-pass emit (`onEnd` container rewrite under `write:true`); (b) shared **partial-ivy Angular lib linking**
+  (MF nested build is commonjs-only — M2.3); (c) `shimMode:false` viability (M2.5); (d) the dominant 0.0.x
+  defects. If any fail, treat as a late Phase-2 gate failure. Phase 3 (config/schematics/NF-removal) needs no
+  browser, so it may proceed in parallel; do not *publish* the Phase-2 deliverable until this e2e is green.
 
 ---
 
 ## Phase 3 — Config + schematics parity, and NF removal 🟢
 
-- [ ] **[M3.1]** `withModuleFederation(config)` mirroring `withNativeFederation`
+- [x] **[M3.1]** `withModuleFederation(config)` mirroring `withNativeFederation`
   (`config/share-utils.ts`): same `share` (`:27`) / `shareAll` (`:15`) / skip-list / `getDefaultPlatform`
   (`:58`) surface, mapped onto MF `shared` semantics (`singleton`/`strictVersion`/`requiredVersion`/`eager`).
   **NF-only fields that DON'T map 1:1 to MF — each needs an explicit decision** (drawn from the live
@@ -419,15 +704,60 @@ Goal: Angular **produces** remotes consumable by any MF v2 host.
   | top-level `name` | plugin `name` | 1:1. |
   | top-level `exposes` | plugin `exposes` | 1:1 shape; value paths reused. |
 
-- [ ] **[M3.2]** Angular skip-list equivalent of `config/angular-skip-list.ts` for MF. Two NF couplings
+  - ✅ **DONE (2026-06-28) — built as a thin wrapper over upstream, per finding #4. 7 tests (incl. runtime),
+    typecheck + eslint clean, suite 99.** `src/config/with-module-federation.ts` exports `withModuleFederation`,
+    `share`, `shareAll`, `getDefaultPlatform`, `SERVER_DEPENDENCIES`. **Key enabler:** the upstream MF config
+    layer (`share`/`shareAll`/`withFederation`/`lookupVersion`) is reachable via the **deep import**
+    `@module-federation/esbuild/dist/lib/config/*` — allowed by the package's `"./*"` export and **free of
+    Breakage A** (the `json5` crash is isolated to other `/build` re-exports). The spec proves `withModuleFederation`
+    actually executes `coreWithFederation` at runtime (not just typecheck), so the reuse is functional.
+    **Mapping-table decisions realized in code:** `requiredVersion:'auto'` → upstream `lookupVersion` (version
+    resolved at config-build time, inside `share`/`shareAll`); `includeSecondaries` → supported (kept on
+    `MfSharedConfig`, incl. the `{skip}` form, casting past the two upstream type defs that disagree —
+    `withFederation`'s is `boolean`-only); `build`/`features.{denseChunking,ignoreUnusedDeps}` → **dropped**;
+    `platform` → kept Angular-side only (`getDefaultPlatform`, re-attached to the normalized output, NOT an MF
+    `shared` key — for the SSR side build, Phase 4).
+  - ⚠️ **Deep-import fragility:** the `dist/lib/config/*` paths are 0.0.x internals (pinned 0.0.109). Re-verify on
+    any version bump; tracked with the dominant 0.0.x risk. (Alternative if it breaks: port the thin logic.)
+  - **Deferred to adjacent tasks:** the Angular skip-list (`shareAll`'s `skip`) → **M3.2** (MF-native NG_SKIP_LIST);
+    the `./config` barrel rewire (`src/config.ts` still exports the NF `withNativeFederation`) → **M3.5**; NF's
+    `removeNgLocales` backwards-compat (tied to the dropped `features.ignoreUnusedDeps`) → folded into
+    `shareAngularLocales` handling at **M4.2**.
+
+- [x] **[M3.2]** Angular skip-list equivalent of `config/angular-skip-list.ts` for MF. Two NF couplings
   to break: (1) it imports both the `SkipList` **type** and the `DEFAULT_SKIP_LIST` base from
   `@softarc/native-federation/config` (`:1`) — reimplement both locally or map to MF's exclusion model;
   (2) `NG_SKIP_LIST` self-lists the **old** `@angular-architects/native-federation*` package paths
   (`:5`–`:7`) — update to the renamed package. The `@angular/localize*`, `*/upgrade`, and
   `*/testing` predicate entries carry over as-is.
-- [ ] **[M3.3]** Rework schematics: `init`, `appbuilder`, the generator
+  - ✅ **DONE (2026-06-28). typecheck + eslint clean; suite 99.** Both couplings broken: (1) `SkipList` +
+    `DEFAULT_SKIP_LIST` now imported from `@module-federation/esbuild/dist/lib/core/default-skip-list.js` (deep
+    import, Breakage-A-free; MF's `SkipListEntry = string|RegExp|SkipFn` mirrors NF's exactly) — **no more
+    `@softarc/native-federation/config` import**; (2) self-listed paths updated to
+    `@angular-architects/module-federation-esbuild`(`/config`,`/internal`). `@angular/localize*`, `*/upgrade`,
+    `*/testing`, `@nx/angular`, `zone.js` carried over unchanged. **Wired into M3.1:** `withModuleFederation`'s
+    `shareAll` now defaults `skip` to `NG_SKIP_LIST`.
+  - 📝 The transitional NF `share-utils.ts` still imports `NG_SKIP_LIST` (now MF-typed) and its 19-test spec
+    stays green — the MF `SkipList` is structurally compatible and the spec uses identity (`toBe`) checks, not
+    contents. Both go in **M3.5**.
+- [~] **[M3.3]** Rework schematics: `init`, `appbuilder`, the generator
   (`generators/native-federation/` → rename), and `federation.config.mjs__tmpl__` to scaffold MF
   config (`federation.config.*`). Rename `init` artifacts to the new package name.
+  - ✅ **Core scaffold reworked (2026-06-28). typecheck + suite 99 green.** **Template
+    (`federation.config.mjs__tmpl__`) rewritten:** import → `@angular-architects/module-federation-esbuild/config`,
+    `withNativeFederation`→`withModuleFederation`; **NF-only fields resolved** — `requiredVersion:'auto'` **kept**
+    (🔑 finding: upstream MF *does* honor `'auto'` via `lookupVersion`, contra parts of M3.1's table), `build:'package'`
+    + `features.denseChunking` **dropped**, `includeSecondaries:{keepAll:true}` **flattened to `true`**, and NF's
+    `shareAll(cfg,{overrides})` → MF's `shareAll(cfg)` + **object-spread** `@angular/core` override. **Package-name
+    renames** (define `ng add`/`ng g` output): `make-main-async` `initFederation` import, `update-workspace-config`
+    builder (all 3 → `…module-federation-esbuild:build`), generator `executor`, and `collection.json` name/descriptions.
+    **`appbuilder` verified** — it flips to `@angular/build:application` (Angular's own builder), so no change.
+  - **Remaining (each coupled to another task, not skipped):** `add-dependencies.ts` (install MF deps / drop
+    `@softarc` — with **M3.5**); the `remove` schematic's es-module-shims/polyfill stripping (lockstep with **M3.5**,
+    and ⚠️ per finding #6 es-module-shims STAYS so removal must stay symmetric, not over-strip); `update22` ng-update
+    refs (**M3.4** resets migrations); `wire-serve-ssr-script.ts` node-preload path (**M4.1** SSR);
+    `update-package-json.ts` NF `patch-angular-build.js` (**M3.5**); and the cosmetic `generators/native-federation/`
+    dir rename.
   - ⚠️ The current template (`schematics/init/files/federation.config.mjs__tmpl__`) still imports from
     **`@angular-architects/native-federation/config`** — i.e. the scaffolded config points at the *old*
     NF package, not this renamed one. Re-point the import and the `withNativeFederation`→`withModuleFederation` call.
@@ -440,38 +770,99 @@ Goal: Angular **produces** remotes consumable by any MF v2 host.
     `import 'es-module-shims';` (`:128`) and the polyfills-array entry (`:136`). Update it in lockstep so
     uninstall stays symmetric with install. (The `appbuilder` schematic at `appbuilder/schematic.ts:41`
     flips the builder back to `@angular/build:application` — verify it points at the renamed builder.)
-- [ ] **[M3.4]** Reset `ng update` migrations: this is a new package starting at its own version,
+- [x] **[M3.4]** Reset `ng update` migrations: this is a new package starting at its own version,
   so `schematics/update18`/`update22` + `migration-collection.json` should be cleared/replaced —
   no NF→MF upgrade path is owed. (Optional: a *separate* one-shot "switch from NF" codemod, but
   it is out of scope for v1.)
-- [ ] **[M3.5]** Remove NF deps + dead code: `@softarc/native-federation*` and the import-map types in
+  - ✅ **DONE (2026-06-28). typecheck + suite 99 green.** Deleted `src/schematics/update18/` and
+    `src/schematics/update22/` (grep-confirmed no TS imports — only the migration collection referenced them by
+    factory-path string). Emptied `migration-collection.json` to `{ schematics: {} }` and renamed it to
+    `module-federation-esbuild` (kept the file + the `package.json` `ng-update.migrations` pointer, so the
+    infra stays for future migrations). The `update22` schematic's `@angular-architects/native-federation`
+    refs are gone with it. No NF→MF codemod (out of scope for v1, per the task).
+- [~] **[M3.5]** Remove NF deps + dead code: `@softarc/native-federation*` and the import-map types in
   `index.ts` (`Imports`/`Scopes`/`ImportMap`). ⚠️ **Corrected by M0.1 finding #6: do NOT remove
   `es-module-shims`** — `@module-federation/esbuild`'s runtime requires the `importShim` global, so it stays
   a dependency *and* stays injected by the polyfills step. Leave `updatePolyfills.ts`'s two es-module-shims
   injection paths (`updatePolyfillsFile`/`updatePolyfillsArray`) **in place** (they may need re-pointing, not
   deleting). Update `package.json` exports (drop NF-shaped entries), `knip.json`, `collection.json`,
   `builders.json`. Net: the "wholesale es-module-shims removal" is cancelled; only the `@softarc/*` engine goes.
-- [ ] **[M3.6]** Rewrite `README.md`, `MIGRATION_GUIDE.md`, `AGENTS.md` for the new package.
+  - ✅ **Done this pass (2026-06-28). typecheck + eslint + knip clean; suite 80.** (1) **`index.ts` is now pure
+    MF** — removed `export * from '@softarc/native-federation/domain'` and the `Imports`/`Scopes`/`ImportMap`
+    types (grep-confirmed unused elsewhere); 13 index tests green. (2) **NF config layer removed** — rewired the
+    `./config` barrel (`src/config.ts`) to export `withModuleFederation`/`share`/`shareAll`/`getDefaultPlatform`
+    from `with-module-federation.js`, then deleted `config/share-utils.ts` + its 19-test spec (−19 → suite 80).
+    (3) **`knip.json` updated** → clean: `ignore` `set-ng-server-mode.ts` (pending M4.1) + `ignoreDependencies`
+    `@module-federation/sdk` & `webpack-bundler-runtime` (runtime-required; the latter imported by the
+    *generated container*, Breakage B, so invisible to static analysis).
+  - 🚨 **SCOPE FINDING — wholesale `@softarc` removal is NOT a cleanup; it's reimplementing reused
+    infrastructure.** `@softarc` is still **load-bearing** in ~24 files: the builders reuse
+    `normalizeFederationOptions` (config loader → `normalized.config/options`), `createFederationCache` +
+    `FederationCache`/`SourceFileCache` (the bundler cache the MF builder invalidates), `getExternals`, and
+    `@softarc/native-federation/internal`'s `RebuildQueue`/`createNfWatcher`/`syncNfFileWatcher`/`AbortedError`/
+    `logger`/`getDefaultCachePath` (watch + rebuild orchestration), plus shared **types** (`EntryPoint`,
+    `FederationInfo`, `NFBuildAdapterOptions` via `normalize-context-options.ts`). The runtime **orchestrator**
+    (`@softarc/native-federation-orchestrator`) is still used by SSR (`node-preload.ts`,
+    `dev-host-instances-entry.ts`) → **Phase 4**. **⇒ The migration swapped the build *engine* + CSR runtime but
+    reused NF's config/cache/watch orchestration.** Dropping the `package.json` `@softarc/*` deps requires
+    MF-native (or ported-local) reimplementations of *all* of the above — a large effort, much of it
+    runtime-unverifiable (config/cache/watch), with the orchestrator piece **gated on Phase-4 SSR**. M3.G's "no
+    `@softarc/*` references remain" therefore cannot close until that infra is reimplemented; tracked as the
+    dominant remaining Phase-3/4 work. **Remaining file-level renames** (still pointing at the old package, not
+    load-bearing): `add-dependencies.ts` (install MF deps / drop `@softarc`), `update-package-json.ts` (NF
+    `patch-angular-build.js`), `wire-serve-ssr-script.ts` (Phase 4), and the `remove` schematic (keep
+    es-module-shims stripping symmetric, finding #6).
+- [~] **[M3.6]** Rewrite `README.md`, `MIGRATION_GUIDE.md`, `AGENTS.md` for the new package.
   `package.json` is **partly** renamed already: `name` is `@angular-architects/module-federation-esbuild`
   (v22.0.2) and `repository` points at the `Aukevanoost/angular-module-federation-adapter` fork — but
   `homepage` still reads `https://github.com/native-federation/angular-adapter` (fix it), and the four
   `exports` subpaths (`.`, `./config`, `./internal`, `./node-preload`) plus `files` must be reconciled
   with the final MF surface.
+  - ✅ **`package.json` reconciled (2026-06-28).** `homepage` fixed →
+    `https://github.com/Aukevanoost/angular-module-federation-adapter#readme` (valid JSON re-verified). The four
+    `exports` subpaths + the `files` array were **audited and are correct** — all targets exist (`src/index`,
+    `src/config` [now MF], `src/internal`, `src/node-preload`; `collection.json`, `generators.json`,
+    `builders.json`, `migration-collection.json`, `README.md`, `LICENSE`). `name`/`repository` already correct.
+  - ⏸️ **Prose docs (README/MIGRATION_GUIDE/AGENTS) deliberately deferred.** Rewriting "how to use" docs now
+    would document an **unverified** package: the API surface isn't final (M3.5's `@softarc` infra removal +
+    Phase-4 SSR are open) and **no gate is empirically green** (all CSR/build proofs await a real Angular app).
+    Write these once the surface stabilizes and the M1.7/M2.G e2e passes — documenting a non-working package
+    first would mislead adopters. Tracked as end-of-migration work.
 
 **Gate [M3.G]:** `ng add @angular-architects/module-federation-esbuild` + `ng g host/remote`
 produce a working MF host+remote pair; `knip` and `lint` clean; no `@softarc/*` references remain
 anywhere. (⚠️ `es-module-shims` **does** remain — finding #6 — so it is *not* part of the clean-out;
 only the `@softarc/*` NF engine must be gone.)
-- [ ] Gate passed + note
+- [ ] **NOT YET — two independent blockers (2026-06-28).** ✅ `knip` + `lint` (+ typecheck, suite 80) are
+  clean, and the config/skip-list/template/migrations are MF (M3.1–M3.4). ❌ **Blocker 1 — `@softarc/*` still
+  present:** the wholesale removal (M3.5) is incomplete because `@softarc` is **load-bearing** infra
+  (config loader, federation cache, watch/rebuild orchestration, shared types) + the SSR orchestrator (Phase 4);
+  removing it = reimplementing that infra (the dominant remaining effort). ❌ **Blocker 2 — `ng add`/`ng g`
+  unverified:** producing a working host+remote pair needs a real Angular workspace + browser, absent here
+  (same limit as M1.7/M2.G). The *static* half (clean, MF-shaped config/schematics) is done; the gate stays open
+  until the infra is reimplemented AND a real `ng add`/serve e2e is green.
 
 ---
 
 ## Phase 4 — SSR + i18n (long tail, optional for v1) 🔴
 
-- [ ] **[M4.1]** SSR: evaluate `@module-federation/node` against Angular's server build pass and
+- [~] **[M4.1]** SSR: evaluate `@module-federation/node` against Angular's server build pass and
   the `ngServerMode` shared-bundle patch (`angular-esbuild-adapter.ts:setNgServerMode`, see M2.3's
   extract-before-delete note). Treat as research; the dev-SSR singleton bridge needs an MF
   equivalent designed from scratch. The three NF pieces to replace, with their actual mechanics:
+  - 🚨 **RESEARCH VERDICT (2026-06-28): SSR under MF-esbuild is architecturally blocked, not just env-blocked.**
+    Two compounding findings: **(1)** `@module-federation/node` (latest **2.7.45**) declares peer
+    `webpack: ^5.40.0` — it's **webpack-coupled**, not aligned with our esbuild build; it expects webpack-shaped
+    containers, not MF-esbuild's. **(2) The deeper blocker:** MF-esbuild's emitted container requires the
+    `importShim` global (es-module-shims, finding #6), which is a **browser** global. **Node SSR has no
+    `importShim`** → loading an MF-esbuild remote server-side reproduces the M0.1 Node
+    `ReferenceError: importShim is not defined`. NF avoided this with a *real Node ESM loader*
+    (`initNodeFederation` + `module.register()`, no `importShim`); **MF-esbuild ships no equivalent Node loader.**
+    ⇒ Server-side rendering of MF-esbuild remotes has no proven path today. **Recommendation: defer SSR to
+    post-v1** (feeds M4.3 → CSR-only v1). If pursued later, options to research: (a) an es-module-shims Node shim
+    / `importShim` polyfill for SSR; (b) a custom Node loader that resolves MF shares without the browser
+    container; (c) waiting for an esbuild-aware `@module-federation/node`. `setNgServerMode` is already extracted
+    (M2.3) and ready for whichever path. **Implementation deferred — needs an SSR+Angular env AND a solved loader.**
   - `node-preload.ts` (161 lines) — a Node `--import` preload that calls `module.register()` to
     install NF's server-side ESM loader **before** `@angular/*` is pulled in, then publishes startup
     state via two global keys (`__NF_HOST_SERVER_LOADER__` = `SERVER_LOADER_GLOBAL_KEY`,
@@ -481,12 +872,21 @@ only the `@softarc/*` NF engine must be gone.)
   - `plugin/dev-host-instances-plugin.ts` (40 lines) — esbuild `Plugin` (`:21`) that injects the
     entry below into the dev server build.
   - `tools/ssr/dev-host-instances-entry.ts` (150 lines) — the injected dev-only bridge body.
-- [ ] **[M4.2]** i18n: replicate `translateFederationArtifacts` (`builders/build/i18n.ts:40`)
+- [~] **[M4.2]** i18n: replicate `translateFederationArtifacts` (`builders/build/i18n.ts:40`)
   against MF artifact names. ⚠️ `copyRemoteEntry` (`:104`) **hard-codes `remoteEntry.json`**, copying
   it from the source locale into each `browser/<locale>/remoteEntry.json` (`:108`); under MF this must
   copy `remoteEntry.js` **and** `mf-manifest.json` per locale instead. Entry point is `getI18nConfig`
   (`:31`); translation runs via Angular's `localize-translate` CLI (`:85`). Re-verify `shareAngularLocales`
   (`config/angular-locales.ts:3`).
+  - ✅ **Artifact-name rework done (2026-06-28). typecheck + eslint clean; i18n spec 9 / suite 81 green.**
+    `copyRemoteEntry` → **`copyFederationArtifacts`**: copies **`remoteEntry.js` + `mf-manifest.json`** into each
+    `browser/<locale>/` (was the single NF `remoteEntry.json`). Guards each with `fs.existsSync` (a pure host has
+    no `remoteEntry.js`). Spec updated: asserts 4 copies (2 artifacts × 2 locales) + a skip-when-absent case. The
+    file-list fed to `localize-translate` already comes from MF's written files via the M2.1
+    `toFederationInfoForI18n` shim.
+  - ⏸️ **Deferred (needs Angular):** the actual `localize-translate` CLI run + per-locale artifact emission, and
+    re-verifying `shareAngularLocales` (`config/angular-locales.ts` still has 1 `@softarc` import → resolves with
+    M3.5). i18n is **optional for v1** (M4.3).
 - [ ] **[M4.3]** Decide v1 scope: CSR host+remote ships without SSR/i18n if needed.
 
 ---

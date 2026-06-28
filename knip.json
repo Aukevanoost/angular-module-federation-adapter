@@ -10,5 +10,10 @@
     "src/generators/*/generator.ts",
     "src/tools/ssr/dev-host-instances-entry.ts"
   ],
-  "project": ["src/**/*.ts"]
+  "project": ["src/**/*.ts"],
+  "ignore": ["src/tools/esbuild/set-ng-server-mode.ts"],
+  "ignoreDependencies": [
+    "@module-federation/sdk",
+    "@module-federation/webpack-bundler-runtime"
+  ]
 }

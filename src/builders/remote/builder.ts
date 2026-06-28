@@ -8,11 +8,8 @@ import { SourceFileCache } from '@angular/build/private';
 import { type BuilderContext, type BuilderOutput, createBuilder } from '@angular-devkit/architect';
 
 import {
-  buildForFederation,
-  rebuildForFederation,
   getExternals,
   normalizeFederationOptions,
-  setBuildAdapter,
   createFederationCache,
 } from '@softarc/native-federation';
 import {
@@ -24,7 +21,7 @@ import {
   syncNfFileWatcher,
 } from '@softarc/native-federation/internal';
 
-import { createAngularBuildAdapter } from '../../tools/esbuild/angular-esbuild-adapter.js';
+import { createMfFederationBuilder } from '../../tools/mf/build-for-federation.js';
 import { checkForInvalidImports } from '../../utils/check-for-invalid-imports.js';
 
 import type { NfRemoteBuilderSchema, NfRemoteInternalOptions } from './schema.js';
@@ -59,8 +56,6 @@ export async function* runRemoteBuilder(
     context
   );
 
-  const adapter = createAngularBuildAdapter(ngBuilderOptions, context);
-  setBuildAdapter(adapter);
   setLogLevel(nfBuilderOptions.verbose ? 'verbose' : 'info');
 
   // Unlike the regular build builder, remote never bundles a main.ts / polyfills.
@@ -96,6 +91,15 @@ export async function* runRemoteBuilder(
 
   const externals = getExternals(normalized.config);
 
+  // MF side builder (M2.1) — replaces NF's adapter + buildForFederation/rebuildForFederation.
+  // Holds one esbuild context (Angular compiler + moduleFederationPlugin) for build + rebuilds.
+  const mfBuilder = await createMfFederationBuilder(
+    normalized.config,
+    normalized.options,
+    externals,
+    { builderOptions: ngBuilderOptions, context }
+  );
+
   const assetEntries = normalizeRemoteAssetEntries(
     nfBuilderOptions.assets,
     context.workspaceRoot,
@@ -122,7 +126,7 @@ export async function* runRemoteBuilder(
   mkdirSync(normalized.options.outputPath, { recursive: true });
 
   try {
-    await buildForFederation(normalized.config, normalized.options, externals);
+    await mfBuilder.build();
   } catch (e) {
     logger.error((e as Error)?.message ?? 'Building the artifacts failed');
     process.exit(1);
@@ -169,13 +173,10 @@ export async function* runRemoteBuilder(
           // stay in pendingPaths and are retried on the next cycle.
           const changedFiles = [...changeWatcher.pendingPaths];
 
-          await rebuildForFederation(
-            normalized.config,
-            normalized.options,
-            externals,
-            changedFiles,
-            signal
-          );
+          // NF's rebuild took an AbortSignal for mid-build cancellation; the MF
+          // builder reuses its esbuild context (fast incremental rebuild), and the
+          // RebuildQueue still wraps it with `signal` for queue-level interruption.
+          await mfBuilder.rebuild(changedFiles);
 
           await copyChangedAssets(
             assetEntries,
@@ -220,7 +221,7 @@ export async function* runRemoteBuilder(
   } finally {
     changeWatcher?.dispose();
     rebuildQueue.dispose();
-    await adapter.dispose();
+    await mfBuilder.dispose();
     await changeWatcher?.watcher.close();
   }
 }

@@ -18,7 +18,16 @@ import { createAwaitableCompilerPlugin } from './create-awaitable-compiler-plugi
 import type { NormalizedContextOptions } from '../../utils/normalize-context-options.js';
 import { updateFederationTsConfig } from './create-federation-tsconfig.js';
 
-export async function createAngularEsbuildContext(options: NormalizedContextOptions): Promise<{
+export async function createAngularEsbuildContext(
+  options: NormalizedContextOptions,
+  // `extraPlugins`: appended after the Angular compiler — the MF side build (M2.1)
+  // injects `moduleFederationPlugin` here (one-pass composition).
+  // `write`: defaults to `false` (NF's adapter wrote outputs itself via writeResult).
+  // The MF side build MUST set `true` (M2.2): the plugin's `onEnd` reads the
+  // emitted container off disk (`fs.readFileSync`) to inject the module map, so it
+  // does not honor `write:false`.
+  extra: { extraPlugins?: esbuild.Plugin[]; write?: boolean } = {}
+): Promise<{
   ctx: esbuild.BuildContext;
   pluginDisposed: Promise<void>;
 }> {
@@ -144,7 +153,7 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     })),
     outdir,
     entryNames: hash ? '[name]-[hash]' : '[name]',
-    write: false,
+    write: extra.write ?? false,
     external,
     logLevel: 'warning',
     bundle: true,
@@ -159,7 +168,7 @@ export async function createAngularEsbuildContext(options: NormalizedContextOpti
     format: 'esm',
     target: target,
     logLimit: 0,
-    plugins: [compilerPlugin, commonjsPlugin(), ...customPlugins],
+    plugins: [compilerPlugin, commonjsPlugin(), ...customPlugins, ...(extra.extraPlugins ?? [])],
     define: {
       ...(dev ? {} : { ngDevMode: 'false' }),
       ngJitMode: 'false',

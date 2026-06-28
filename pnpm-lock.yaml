@@ -26,6 +26,18 @@ importers:
       '@chialab/esbuild-plugin-commonjs':
         specifier: ^0.19.0
         version: 0.19.1
+      '@module-federation/esbuild':
+        specifier: 0.0.109
+        version: 0.0.109
+      '@module-federation/runtime':
+        specifier: 2.6.0
+        version: 2.6.0
+      '@module-federation/sdk':
+        specifier: 2.6.0
+        version: 2.6.0
+      '@module-federation/webpack-bundler-runtime':
+        specifier: 2.6.0
+        version: 2.6.0
       '@softarc/native-federation':
         specifier: ^4.0.0
         version: 4.2.0(typescript@6.0.3)
@@ -275,20 +287,40 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==, tarball: https://registry.npmjs.org/@bcoe/v8-coverage/-/v8-coverage-1.0.2.tgz}
     engines: {node: '>=18'}
 
+  '@chialab/cjs-to-esm@0.18.0':
+    resolution: {integrity: sha512-fm8X9NhPO5pyUB7gxOZgwxb8lVq1UD4syDJCpqh6x4zGME6RTck7BguWZ4Zgv3GML4fQ4KZtyRwP5eoDgNGrmA==, tarball: https://registry.npmjs.org/@chialab/cjs-to-esm/-/cjs-to-esm-0.18.0.tgz}
+    engines: {node: '>=18'}
+
   '@chialab/cjs-to-esm@0.19.2':
     resolution: {integrity: sha512-si+dfCzglT+zh+4okOjA+BKnb2SfdmD81pEYW9qgtzWQbHSSai4niz7kd0Q7JtfHSMlttYkYw1TSybl1M7ETpA==, tarball: https://registry.npmjs.org/@chialab/cjs-to-esm/-/cjs-to-esm-0.19.2.tgz}
+    engines: {node: '>=18'}
+
+  '@chialab/esbuild-plugin-commonjs@0.18.0':
+    resolution: {integrity: sha512-qZjIsNr1dVEJk6NLyza3pJLHeY7Fz0xjmYteKXElCnlFSKR7vVg6d18AsxVpRnP5qNbvx3XlOvs9U8j97ZQ6bw==, tarball: https://registry.npmjs.org/@chialab/esbuild-plugin-commonjs/-/esbuild-plugin-commonjs-0.18.0.tgz}
     engines: {node: '>=18'}
 
   '@chialab/esbuild-plugin-commonjs@0.19.1':
     resolution: {integrity: sha512-jqX7SmHjelH90DrIUZoB9iGoMdML4hKCwqomZrfvfgx6t22llDXP7MkawHmrny/kZmreA0Ytjsp46dsV51OioQ==, tarball: https://registry.npmjs.org/@chialab/esbuild-plugin-commonjs/-/esbuild-plugin-commonjs-0.19.1.tgz}
     engines: {node: '>=18'}
 
+  '@chialab/esbuild-rna@0.18.2':
+    resolution: {integrity: sha512-ckzskez7bxstVQ4c5cxbx0DRP2teldzrcSGQl2KPh1VJGdO2ZmRrb6vNkBBD5K3dx9tgTyvskWp4dV+Fbg07Ag==, tarball: https://registry.npmjs.org/@chialab/esbuild-rna/-/esbuild-rna-0.18.2.tgz}
+    engines: {node: '>=18'}
+
   '@chialab/esbuild-rna@0.19.2':
     resolution: {integrity: sha512-VS2IchYI9Fa454diRY0qj9LvaMlubjSuc3siLtG1OGU8lm4gigWBTxn+do/auaONh1W/a4XsaoWzPSYNm+Fqwg==, tarball: https://registry.npmjs.org/@chialab/esbuild-rna/-/esbuild-rna-0.19.2.tgz}
     engines: {node: '>=18'}
 
+  '@chialab/estransform@0.18.1':
+    resolution: {integrity: sha512-W/WmjpQL2hndD0/XfR0FcPBAUj+aLNeoAVehOjV/Q9bSnioz0GVSAXXhzp59S33ZynxJBBfn8DNiMTVNJmk4Aw==, tarball: https://registry.npmjs.org/@chialab/estransform/-/estransform-0.18.1.tgz}
+    engines: {node: '>=18'}
+
   '@chialab/estransform@0.20.0':
     resolution: {integrity: sha512-ziaUvRJy520iI5qCRTdMoYvXShLFa6QsIUR8Pj7H/4sJzUOia1OY3QgAAsuGcBjj30nsBSqc4W0Y/jF6phMYQA==, tarball: https://registry.npmjs.org/@chialab/estransform/-/estransform-0.20.0.tgz}
+    engines: {node: '>=18'}
+
+  '@chialab/node-resolve@0.18.0':
+    resolution: {integrity: sha512-eV1m70Qn9pLY9xwFmZ2FlcOzwiaUywsJ7NB/ud8VB7DouvCQtIHkQ3Om7uPX0ojXGEG1LCyO96kZkvbNTxNu0Q==, tarball: https://registry.npmjs.org/@chialab/node-resolve/-/node-resolve-0.18.0.tgz}
     engines: {node: '>=18'}
 
   '@chialab/node-resolve@0.19.1':
@@ -536,6 +568,16 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==, tarball: https://registry.npmjs.org/@humanwhocodes/retry/-/retry-0.4.3.tgz}
     engines: {node: '>=18.18'}
 
+  '@hyrious/esbuild-plugin-commonjs@0.2.4':
+    resolution: {integrity: sha512-NKR8bsDbNP7EpM//cjoo8Bpihmc97gPpnwrggG+18iSGow6oaJpfmy3Bv+oBgPkPlxcGzC9SXh+6szoCoKFvCw==, tarball: https://registry.npmjs.org/@hyrious/esbuild-plugin-commonjs/-/esbuild-plugin-commonjs-0.2.4.tgz}
+    engines: {node: '>=14'}
+    peerDependencies:
+      cjs-module-lexer: '*'
+      esbuild: '>=0.28.1'
+    peerDependenciesMeta:
+      cjs-module-lexer:
+        optional: true
+
   '@inquirer/ansi@2.0.7':
     resolution: {integrity: sha512-3eTuUO1vH2cZm2ZKHeQxnOqlTi9EfZDGgIe3BL3I4u+rJHocr9Fz86M4fjYABPvFnQG/gGK551HqDiIcETwU6Q==, tarball: https://registry.npmjs.org/@inquirer/ansi/-/ansi-2.0.7.tgz}
     engines: {node: '>=23.5.0 || ^22.13.0 || ^20.17.0'}
@@ -625,6 +667,29 @@ packages:
     resolution: {integrity: sha512-JF1BmLCm9kGEVZgYmJq43zeQVdHVgAJnTi/NURWEsy6L1ZrrlSmdltS+D17QN4LODwf+1LMXAA9auIZVXtWwzw==, tarball: https://registry.npmjs.org/@lmdb/lmdb-win32-x64/-/lmdb-win32-x64-3.5.4.tgz}
     cpu: [x64]
     os: [win32]
+
+  '@module-federation/error-codes@2.6.0':
+    resolution: {integrity: sha512-J9opjWJJZ1JI/9EvNZF8Ps1VMHS9EsH/i0UjCkQQxFVYZxSDBX1CFunvc7awac4cY//LqJUfqBbfoQPhCfKKKw==, tarball: https://registry.npmjs.org/@module-federation/error-codes/-/error-codes-2.6.0.tgz}
+
+  '@module-federation/esbuild@0.0.109':
+    resolution: {integrity: sha512-W1//Nlf+wR5DqSpBEP3H2QzrpyUro0zx2ThiETqba7NGs37m28WsZV8TZNzpyHytYHnUqsR4FoCwTl+B6evUVA==, tarball: https://registry.npmjs.org/@module-federation/esbuild/-/esbuild-0.0.109.tgz}
+
+  '@module-federation/runtime-core@2.6.0':
+    resolution: {integrity: sha512-9sL7Yj3H3COZI9JpK/J4hmJUBkIJdmowkj6phHuFiy5Hm5bHiE5U+9WBbR9KqTdyNhAVSL9FeprBW5/Io6i59A==, tarball: https://registry.npmjs.org/@module-federation/runtime-core/-/runtime-core-2.6.0.tgz}
+
+  '@module-federation/runtime@2.6.0':
+    resolution: {integrity: sha512-Y8KgL70RDxD8cCtGWGlGkt+TSDleIjdGmS27gnllibQAIgG/vHhPD11r8kd92x44k4dqtMIntzreOphGICl92g==, tarball: https://registry.npmjs.org/@module-federation/runtime/-/runtime-2.6.0.tgz}
+
+  '@module-federation/sdk@2.6.0':
+    resolution: {integrity: sha512-Z3HT1uDciMrvz2at3sw6TJbAK9Fl7RmoC/8iqO35HDtQMQJ1qSsMIAjnsiCpAC0D4nAm6PIqgSqPWRO/WYgo0Q==, tarball: https://registry.npmjs.org/@module-federation/sdk/-/sdk-2.6.0.tgz}
+    peerDependencies:
+      node-fetch: ^2.7.0 || ^3.3.2
+    peerDependenciesMeta:
+      node-fetch:
+        optional: true
+
+  '@module-federation/webpack-bundler-runtime@2.6.0':
+    resolution: {integrity: sha512-JjuWOU3ktwDjBWhM4WCoeiErcUxcB5YwUnVjyTMfNJHC3+DMhG4m6ziCl5EJrCv+KaEQdcvXmxLliNZidBZGQg==, tarball: https://registry.npmjs.org/@module-federation/webpack-bundler-runtime/-/webpack-bundler-runtime-2.6.0.tgz}
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     resolution: {integrity: sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ==, tarball: https://registry.npmjs.org/@msgpackr-extract/msgpackr-extract-darwin-arm64/-/msgpackr-extract-darwin-arm64-3.0.4.tgz}
@@ -1738,6 +1803,14 @@ packages:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==, tarball: https://registry.npmjs.org/ansi-styles/-/ansi-styles-6.2.3.tgz}
     engines: {node: '>=12'}
 
+  aproba@2.1.0:
+    resolution: {integrity: sha512-tLIEcj5GuR2RSTnxNKdkK0dJ/GrC7P38sUkiDmDuHfsHmbagTFAxDVIBltoklXEVIQ/f14IL8IMJ5pn9Hez1Ew==, tarball: https://registry.npmjs.org/aproba/-/aproba-2.1.0.tgz}
+
+  are-we-there-yet@4.0.2:
+    resolution: {integrity: sha512-ncSWAawFhKMJDTdoAeOV+jyW1VCMj5QIAwULIBV0SSR7B/RLPPEQiknKcg/RIIZlUQrxELpsxMiTUoAQ4sIUyg==, tarball: https://registry.npmjs.org/are-we-there-yet/-/are-we-there-yet-4.0.2.tgz}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+    deprecated: This package is no longer supported.
+
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==, tarball: https://registry.npmjs.org/argparse/-/argparse-2.0.1.tgz}
 
@@ -1836,6 +1909,9 @@ packages:
     resolution: {integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==, tarball: https://registry.npmjs.org/chokidar/-/chokidar-5.0.0.tgz}
     engines: {node: '>= 20.19.0'}
 
+  cjs-module-lexer@1.3.1:
+    resolution: {integrity: sha512-a3KdPAANPbNE4ZUv9h6LckSl9zLsYOP4MBmhIPkRaeyybt+r4UghLvq+xw/YwUcC1gqylCkL4rdVs3Lwupjm4Q==, tarball: https://registry.npmjs.org/cjs-module-lexer/-/cjs-module-lexer-1.3.1.tgz}
+
   cjs-module-lexer@1.4.3:
     resolution: {integrity: sha512-9z8TZaGM1pfswYeXrUpzPrkx8UnWYdhJclsiYMm6x/w5+nN+8Tf/LnAgfLGQCm59qAOxU8WwHEq2vNwF6i4j+Q==, tarball: https://registry.npmjs.org/cjs-module-lexer/-/cjs-module-lexer-1.4.3.tgz}
 
@@ -1882,12 +1958,19 @@ packages:
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==, tarball: https://registry.npmjs.org/color-name/-/color-name-1.1.4.tgz}
 
+  color-support@1.1.3:
+    resolution: {integrity: sha512-qiBjkpbMLO/HL68y+lh4q0/O1MZFj2RX6X/KmMa3+gJD3z+WwI1ZzDHysvqHGS3mP6mznPckpXmw1nI9cJjyRg==, tarball: https://registry.npmjs.org/color-support/-/color-support-1.1.3.tgz}
+    hasBin: true
+
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==, tarball: https://registry.npmjs.org/combined-stream/-/combined-stream-1.0.8.tgz}
     engines: {node: '>= 0.8'}
 
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==, tarball: https://registry.npmjs.org/concat-map/-/concat-map-0.0.1.tgz}
+
+  console-control-strings@1.1.0:
+    resolution: {integrity: sha512-ty/fTekppD2fIwRvnZAVdeOiGd1c7YXEixbgJTNzqcxJWKQnjJ/V1bNEEE6hygpM3WjwHFUVK6HTjWSzV4a8sQ==, tarball: https://registry.npmjs.org/console-control-strings/-/console-control-strings-1.1.0.tgz}
 
   convert-source-map@1.9.0:
     resolution: {integrity: sha512-ASFBup0Mz1uyiIjANan1jzLQami9z1PoYSZCiiYW2FczPbenXc45FZdBZLzOT+r6+iciuEModtmCti+hjaAk0A==, tarball: https://registry.npmjs.org/convert-source-map/-/convert-source-map-1.9.0.tgz}
@@ -1980,6 +2063,10 @@ packages:
   end-of-stream@1.4.5:
     resolution: {integrity: sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg==, tarball: https://registry.npmjs.org/end-of-stream/-/end-of-stream-1.4.5.tgz}
 
+  enhanced-resolve@5.16.1:
+    resolution: {integrity: sha512-4U5pNsuDl0EhuZpq46M5xPslstkviJuhrdobaRDBk2Jy2KO37FDAJl4lb2KlNabxT0m4MTK2UHNrsAcphE8nyw==, tarball: https://registry.npmjs.org/enhanced-resolve/-/enhanced-resolve-5.16.1.tgz}
+    engines: {node: '>=10.13.0'}
+
   enquirer@2.3.6:
     resolution: {integrity: sha512-yjNnPr315/FjS4zIsUxYguYUPP2e1NK4d7E7ZOLiyYCcbFBiTMyID+2wvm2w6+pZ/odMA7cRkjhsPbltwBOrLg==, tarball: https://registry.npmjs.org/enquirer/-/enquirer-2.3.6.tgz}
     engines: {node: '>=8.6'}
@@ -2007,6 +2094,9 @@ packages:
   es-errors@1.3.0:
     resolution: {integrity: sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==, tarball: https://registry.npmjs.org/es-errors/-/es-errors-1.3.0.tgz}
     engines: {node: '>= 0.4'}
+
+  es-module-lexer@1.5.3:
+    resolution: {integrity: sha512-i1gCgmR9dCl6Vil6UKPI/trA69s08g/syhiDK9TG0Nf1RJjjFI+AzoWW7sPufzkgYAn861skuCwJa0pIIHYxvg==, tarball: https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-1.5.3.tgz}
 
   es-module-lexer@1.7.0:
     resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==, tarball: https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-1.7.0.tgz}
@@ -2194,6 +2284,11 @@ packages:
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==, tarball: https://registry.npmjs.org/function-bind/-/function-bind-1.1.2.tgz}
 
+  gauge@5.0.2:
+    resolution: {integrity: sha512-pMaFftXPtiGIHCJHdcUUx9Rby/rFT/Kkt3fIIGCs+9PMDIljSyRiqraTlxNtBReJRDfUefpa263RQ3vnp5G/LQ==, tarball: https://registry.npmjs.org/gauge/-/gauge-5.0.2.tgz}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+    deprecated: This package is no longer supported.
+
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==, tarball: https://registry.npmjs.org/gensync/-/gensync-1.0.0-beta.2.tgz}
     engines: {node: '>=6.9.0'}
@@ -2254,6 +2349,9 @@ packages:
   has-tostringtag@1.0.2:
     resolution: {integrity: sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw==, tarball: https://registry.npmjs.org/has-tostringtag/-/has-tostringtag-1.0.2.tgz}
     engines: {node: '>= 0.4'}
+
+  has-unicode@2.0.1:
+    resolution: {integrity: sha512-8Rf9Y83NBReMnx0gFzA8JImQACstCYWUplepDa9xprwwtmgEZUF0h/i5xSA625zB/I37EtrswSST6OXxwaaIJQ==, tarball: https://registry.npmjs.org/has-unicode/-/has-unicode-2.0.1.tgz}
 
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==, tarball: https://registry.npmjs.org/hasown/-/hasown-2.0.2.tgz}
@@ -2539,6 +2637,11 @@ packages:
     resolution: {integrity: sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw==, tarball: https://registry.npmjs.org/npm-run-path/-/npm-run-path-4.0.1.tgz}
     engines: {node: '>=8'}
 
+  npmlog@7.0.1:
+    resolution: {integrity: sha512-uJ0YFk/mCQpLBt+bxN88AKd+gyqZvZDbtiNxk6Waqcj2aPRyfVx8ITawkyQynxUagInjdYT1+qj4NfA5KJJUxg==, tarball: https://registry.npmjs.org/npmlog/-/npmlog-7.0.1.tgz}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+    deprecated: This package is no longer supported.
+
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==, tarball: https://registry.npmjs.org/nth-check/-/nth-check-2.1.1.tgz}
 
@@ -2757,6 +2860,9 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  set-blocking@2.0.0:
+    resolution: {integrity: sha512-KiKBS8AnWGEyLzofFfmvKwpdPzqiy16LvQfK3yv/fVH7Bj13/wl3JSR1J+rfgRE9q7xUJK4qvgS8raSOeLUehw==, tarball: https://registry.npmjs.org/set-blocking/-/set-blocking-2.0.0.tgz}
+
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==, tarball: https://registry.npmjs.org/shebang-command/-/shebang-command-2.0.0.tgz}
     engines: {node: '>=8'}
@@ -2854,6 +2960,10 @@ packages:
   supports-color@7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==, tarball: https://registry.npmjs.org/supports-color/-/supports-color-7.2.0.tgz}
     engines: {node: '>=8'}
+
+  tapable@2.3.3:
+    resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==, tarball: https://registry.npmjs.org/tapable/-/tapable-2.3.3.tgz}
+    engines: {node: '>=6'}
 
   tar-stream@2.2.0:
     resolution: {integrity: sha512-ujeqbceABgwMZxEJnk2HDY2DlnUZ+9oEcb1KzTVfYHio0UE6dG71n60d8D2I4qNvleWrrXpmjpt7vZeF1LnMZQ==, tarball: https://registry.npmjs.org/tar-stream/-/tar-stream-2.2.0.tgz}
@@ -3043,6 +3153,9 @@ packages:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==, tarball: https://registry.npmjs.org/why-is-node-running/-/why-is-node-running-2.3.0.tgz}
     engines: {node: '>=8'}
     hasBin: true
+
+  wide-align@1.1.5:
+    resolution: {integrity: sha512-eDMORYaPNZ4sQIuuYPDHdQvf4gyCF9rEEV/yPxGfwPkRodwEgiMUUXTx/dex+Me0wxx53S+NgUHaP7y3MGlDmg==, tarball: https://registry.npmjs.org/wide-align/-/wide-align-1.1.5.tgz}
 
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==, tarball: https://registry.npmjs.org/word-wrap/-/word-wrap-1.2.5.tgz}
@@ -3365,19 +3478,37 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
+  '@chialab/cjs-to-esm@0.18.0':
+    dependencies:
+      '@chialab/estransform': 0.18.1
+
   '@chialab/cjs-to-esm@0.19.2':
     dependencies:
       '@chialab/estransform': 0.20.0
+
+  '@chialab/esbuild-plugin-commonjs@0.18.0':
+    dependencies:
+      '@chialab/cjs-to-esm': 0.18.0
+      '@chialab/esbuild-rna': 0.18.2
 
   '@chialab/esbuild-plugin-commonjs@0.19.1':
     dependencies:
       '@chialab/cjs-to-esm': 0.19.2
       '@chialab/esbuild-rna': 0.19.2
 
+  '@chialab/esbuild-rna@0.18.2':
+    dependencies:
+      '@chialab/estransform': 0.18.1
+      '@chialab/node-resolve': 0.18.0
+
   '@chialab/esbuild-rna@0.19.2':
     dependencies:
       '@chialab/estransform': 0.20.0
       '@chialab/node-resolve': 0.19.1
+
+  '@chialab/estransform@0.18.1':
+    dependencies:
+      '@parcel/source-map': 2.1.1
 
   '@chialab/estransform@0.20.0':
     dependencies:
@@ -3386,6 +3517,8 @@ snapshots:
       cjs-module-lexer: 1.4.3
       es-module-lexer: 1.7.0
       oxc-parser: 0.137.0
+
+  '@chialab/node-resolve@0.18.0': {}
 
   '@chialab/node-resolve@0.19.1': {}
 
@@ -3399,7 +3532,6 @@ snapshots:
     dependencies:
       '@emnapi/wasi-threads': 1.2.2
       tslib: 2.8.1
-    optional: true
 
   '@emnapi/core@1.4.5':
     dependencies:
@@ -3414,7 +3546,6 @@ snapshots:
   '@emnapi/runtime@1.11.1':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@emnapi/runtime@1.4.5':
     dependencies:
@@ -3427,7 +3558,6 @@ snapshots:
   '@emnapi/wasi-threads@1.2.2':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@esbuild/aix-ppc64@0.28.1':
     optional: true
@@ -3572,6 +3702,12 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
+  '@hyrious/esbuild-plugin-commonjs@0.2.4(cjs-module-lexer@1.3.1)(esbuild@0.28.1)':
+    dependencies:
+      esbuild: 0.28.1
+    optionalDependencies:
+      cjs-module-lexer: 1.3.1
+
   '@inquirer/ansi@2.0.7': {}
 
   '@inquirer/confirm@6.0.12(@types/node@24.10.15)':
@@ -3640,6 +3776,49 @@ snapshots:
 
   '@lmdb/lmdb-win32-x64@3.5.4':
     optional: true
+
+  '@module-federation/error-codes@2.6.0': {}
+
+  '@module-federation/esbuild@0.0.109':
+    dependencies:
+      '@chialab/esbuild-plugin-commonjs': 0.18.0
+      '@hyrious/esbuild-plugin-commonjs': 0.2.4(cjs-module-lexer@1.3.1)(esbuild@0.28.1)
+      '@module-federation/runtime': 2.6.0
+      '@module-federation/sdk': 2.6.0
+      '@module-federation/webpack-bundler-runtime': 2.6.0
+      cjs-module-lexer: 1.3.1
+      enhanced-resolve: 5.16.1
+      es-module-lexer: 1.5.3
+      esbuild: 0.28.1
+      json5: 2.2.3
+      npmlog: 7.0.1
+    transitivePeerDependencies:
+      - node-fetch
+
+  '@module-federation/runtime-core@2.6.0':
+    dependencies:
+      '@module-federation/error-codes': 2.6.0
+      '@module-federation/sdk': 2.6.0
+    transitivePeerDependencies:
+      - node-fetch
+
+  '@module-federation/runtime@2.6.0':
+    dependencies:
+      '@module-federation/error-codes': 2.6.0
+      '@module-federation/runtime-core': 2.6.0
+      '@module-federation/sdk': 2.6.0
+    transitivePeerDependencies:
+      - node-fetch
+
+  '@module-federation/sdk@2.6.0': {}
+
+  '@module-federation/webpack-bundler-runtime@2.6.0':
+    dependencies:
+      '@module-federation/error-codes': 2.6.0
+      '@module-federation/runtime': 2.6.0
+      '@module-federation/sdk': 2.6.0
+    transitivePeerDependencies:
+      - node-fetch
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     optional: true
@@ -3788,8 +3967,8 @@ snapshots:
 
   '@napi-rs/wasm-runtime@0.2.4':
     dependencies:
-      '@emnapi/core': 1.4.5
-      '@emnapi/runtime': 1.4.5
+      '@emnapi/core': 1.11.1
+      '@emnapi/runtime': 1.11.1
       '@tybys/wasm-util': 0.9.0
 
   '@napi-rs/wasm-runtime@1.1.5(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)':
@@ -4454,6 +4633,10 @@ snapshots:
 
   ansi-styles@6.2.3: {}
 
+  aproba@2.1.0: {}
+
+  are-we-there-yet@4.0.2: {}
+
   argparse@2.0.1: {}
 
   assertion-error@2.0.1: {}
@@ -4558,6 +4741,8 @@ snapshots:
     dependencies:
       readdirp: 5.0.0
 
+  cjs-module-lexer@1.3.1: {}
+
   cjs-module-lexer@1.4.3: {}
 
   cli-cursor@3.1.0:
@@ -4599,11 +4784,15 @@ snapshots:
 
   color-name@1.1.4: {}
 
+  color-support@1.1.3: {}
+
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
 
   concat-map@0.0.1: {}
+
+  console-control-strings@1.1.0: {}
 
   convert-source-map@1.9.0: {}
 
@@ -4686,6 +4875,11 @@ snapshots:
     dependencies:
       once: 1.4.0
 
+  enhanced-resolve@5.16.1:
+    dependencies:
+      graceful-fs: 4.2.11
+      tapable: 2.3.3
+
   enquirer@2.3.6:
     dependencies:
       ansi-colors: 4.1.3
@@ -4702,6 +4896,8 @@ snapshots:
 
   es-errors@1.3.0: {}
 
+  es-module-lexer@1.5.3: {}
+
   es-module-lexer@1.7.0: {}
 
   es-module-lexer@2.1.0: {}
@@ -4717,7 +4913,7 @@ snapshots:
       es-errors: 1.3.0
       get-intrinsic: 1.3.0
       has-tostringtag: 1.0.2
-      hasown: 2.0.2
+      hasown: 2.0.4
 
   esbuild@0.28.1:
     optionalDependencies:
@@ -4917,6 +5113,17 @@ snapshots:
 
   function-bind@1.1.2: {}
 
+  gauge@5.0.2:
+    dependencies:
+      aproba: 2.1.0
+      color-support: 1.1.3
+      console-control-strings: 1.1.0
+      has-unicode: 2.0.1
+      signal-exit: 4.1.0
+      string-width: 4.2.3
+      strip-ansi: 6.0.1
+      wide-align: 1.1.5
+
   gensync@1.0.0-beta.2: {}
 
   get-caller-file@2.0.5: {}
@@ -4933,7 +5140,7 @@ snapshots:
       get-proto: 1.0.1
       gopd: 1.2.0
       has-symbols: 1.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       math-intrinsics: 1.1.0
 
   get-proto@1.0.1:
@@ -4970,6 +5177,8 @@ snapshots:
   has-tostringtag@1.0.2:
     dependencies:
       has-symbols: 1.1.0
+
+  has-unicode@2.0.1: {}
 
   hasown@2.0.2:
     dependencies:
@@ -5250,6 +5459,13 @@ snapshots:
   npm-run-path@4.0.1:
     dependencies:
       path-key: 3.1.1
+
+  npmlog@7.0.1:
+    dependencies:
+      are-we-there-yet: 4.0.2
+      console-control-strings: 1.1.0
+      gauge: 5.0.2
+      set-blocking: 2.0.0
 
   nth-check@2.1.1:
     dependencies:
@@ -5668,6 +5884,8 @@ snapshots:
 
   semver@7.8.5: {}
 
+  set-blocking@2.0.0: {}
+
   shebang-command@2.0.0:
     dependencies:
       shebang-regex: 3.0.0
@@ -5749,6 +5967,8 @@ snapshots:
   supports-color@7.2.0:
     dependencies:
       has-flag: 4.0.0
+
+  tapable@2.3.3: {}
 
   tar-stream@2.2.0:
     dependencies:
@@ -5894,6 +6114,10 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  wide-align@1.1.5:
+    dependencies:
+      string-width: 4.2.3
 
   word-wrap@1.2.5: {}
 

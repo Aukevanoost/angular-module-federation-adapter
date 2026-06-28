@@ -53,7 +53,7 @@ export default async function (tree: Tree, options: NativeFederationGeneratorSch
     sourceRoot: `${normalizedOptions.projectRoot}/src`,
     targets: {
       build: {
-        executor: '@angular-architects/native-federation:build',
+        executor: '@angular-architects/module-federation-esbuild:build',
       },
     },
     tags: normalizedOptions.parsedTags,

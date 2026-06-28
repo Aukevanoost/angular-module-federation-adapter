@@ -85,7 +85,7 @@ export async function translateFederationArtifacts(
   const cmd = `"${localizeTranslate}" -r "${sourceLocalePath}" -s "${sourcePattern}" -t ${translationFiles} -o "${translationOutPath}" --target-locales ${targetLocales} -l ${sourceLocale}`;
 
   ensureDistFolders(locales, outputPath);
-  copyRemoteEntry(locales, outputPath, sourceLocalePath);
+  copyFederationArtifacts(locales, outputPath, sourceLocalePath);
 
   logger.debug('Running: ' + cmd);
 
@@ -101,12 +101,26 @@ function execCommand(cmd: string, defaultSuccessInfo: string) {
   }
 }
 
-function copyRemoteEntry(locales: string[], outputPath: string, sourceLocalePath: string) {
-  const remoteEntry = path.join(sourceLocalePath, 'remoteEntry.json');
+/**
+ * Federation artifacts copied from the source locale into each target locale dir.
+ * M4.2: NF copied only `remoteEntry.json`; under MF the artifacts are the ESM
+ * container `remoteEntry.js` and the `mf-manifest.json` (both per-locale).
+ */
+const FEDERATION_ARTIFACTS = ['remoteEntry.js', 'mf-manifest.json'];
 
-  for (const locale of locales) {
-    const localePath = path.join(outputPath, 'browser', locale, 'remoteEntry.json');
-    fs.copyFileSync(remoteEntry, localePath);
+function copyFederationArtifacts(
+  locales: string[],
+  outputPath: string,
+  sourceLocalePath: string
+) {
+  for (const artifact of FEDERATION_ARTIFACTS) {
+    const src = path.join(sourceLocalePath, artifact);
+    // A pure host has no `remoteEntry.js`; only copy artifacts that exist.
+    if (!fs.existsSync(src)) continue;
+    for (const locale of locales) {
+      const dest = path.join(outputPath, 'browser', locale, artifact);
+      fs.copyFileSync(src, dest);
+    }
   }
 }
 

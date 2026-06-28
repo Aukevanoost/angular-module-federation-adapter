@@ -1,31 +1,25 @@
-export * from '@softarc/native-federation/domain';
+// Phase 1 — orchestrator swap (M1.2/M1.3).
+// Runtime moved from `@softarc/native-federation-orchestrator` to
+// `@module-federation/runtime` (`createInstance` + `loadRemote`). The NF-shaped
+// public surface (`initFederation`/`loadRemoteModule`) is kept for adoption
+// familiarity; NF-only options (`shimMode`, `sse`, `cacheTag`) are dropped.
+// NB finding #6: MF-esbuild still shares modules via es-module-shims import maps,
+// so the loader is unchanged — only the registration/manifest API differs.
+// M3.5: the NF `@softarc/.../domain` re-export and the `Imports`/`Scopes`/`ImportMap`
+// import-map types are removed — this entry is now pure MF.
 import {
-  initFederation as internalInitFederation,
-  type NativeFederationResult,
-} from '@softarc/native-federation-orchestrator';
-import {
-  useShimImportMap,
-  useDefaultImportMap,
-  consoleLogger,
-  globalThisStorageEntry,
-  type LogType,
-} from '@softarc/native-federation-orchestrator/options';
-
-export type Imports = Record<string, string>;
-export type Scopes = Record<string, Imports>;
-export type ImportMap = {
-  imports: Imports;
-  scopes: Scopes;
-};
+  createInstance,
+  type ModuleFederation,
+  type ModuleFederationRuntimePlugin,
+} from '@module-federation/runtime';
 
 /**
- * Options for {@link loadRemoteModule}. Mirrors the shape used by
- * `@softarc/native-federation-orchestrator`.
+ * Options for {@link FederationInstance.loadRemoteModule}.
  *
- * @property remoteEntry - URL to the remote's `remoteEntry.json`. Enables
- *   lazy-loading remotes not registered during `initFederation`.
- * @property remoteName - Name of the remote. If omitted, derived from
- *   `remoteEntry` (its manifest's `name`).
+ * @property remoteName - Name of the remote as registered in
+ *   {@link initFederation}, or derived from `remoteEntry`.
+ * @property remoteEntry - URL to the remote's `remoteEntry.js` / `mf-manifest.json`.
+ *   Enables lazy-loading remotes not registered up front (wired in M1.3).
  * @property exposedModule - Key exposed by the remote (e.g. `'./Component'`).
  * @property fallback - Value returned on failure. Truthy-only — `null`/`0`/`''`
  *   count as "no fallback".
@@ -38,52 +32,75 @@ export type LoadRemoteModuleOptions<T = any> = {
   fallback?: T;
 };
 
+/** MF runtime `shared` map, derived from `createInstance` so we don't reach into the transitive `runtime-core`. */
+export type SharedConfig = NonNullable<Parameters<typeof createInstance>[0]['shared']>;
+
+/**
+ * Framework packages that MUST resolve to a single instance, or Angular trips
+ * `NG0203`. Registered as MF singletons (M0.2's mandated config).
+ *
+ * `requiredVersion: false` for now — the singleton is enforced but the version
+ * check is relaxed, because resolving the installed version (NF's
+ * `requiredVersion: 'auto'`) is a config-build-time concern owned by
+ * `withModuleFederation` in **M3.1**; once that lands it feeds concrete ranges
+ * here. The actual module sharing flows through es-module-shims import maps at
+ * runtime (finding #6) — this map only declares the singleton/version contract.
+ */
+export const DEFAULT_ANGULAR_SHARED: SharedConfig = {
+  '@angular/core': { shareConfig: { singleton: true, strictVersion: true, requiredVersion: false } },
+  '@angular/common': { shareConfig: { singleton: true, strictVersion: true, requiredVersion: false } },
+  '@angular/common/http': { shareConfig: { singleton: true, strictVersion: true, requiredVersion: false } },
+  '@angular/router': { shareConfig: { singleton: true, strictVersion: true, requiredVersion: false } },
+  '@angular/platform-browser': { shareConfig: { singleton: true, strictVersion: true, requiredVersion: false } },
+  rxjs: { shareConfig: { singleton: true, strictVersion: true, requiredVersion: false } },
+  'zone.js': { shareConfig: { singleton: true, strictVersion: true, requiredVersion: false } },
+};
+
+/**
+ * Options for {@link initFederation}. NF-native knobs (`shimMode`, `sse`,
+ * `cacheTag`, `logging`) are intentionally dropped — MF manages its import map
+ * internally and exposes behaviour through runtime plugins instead.
+ */
 export interface InitFederationOptions {
-  cacheTag?: string;
-  logging?: LogType;
-  sse?: boolean;
+  /** Instance name registered with the MF share scope (default `'host'`). */
+  name?: string;
+  /** MF runtime plugins (replaces NF's `shimMode`/`esmsInitOptions`). */
+  runtimePlugins?: ModuleFederationRuntimePlugin[];
+  /** Override the default MF share scope name. */
+  shareScope?: string;
   /**
-   * Use es-module-shims shim mode (default `true`). Set `false` for native
-   * import maps; the build option `esmsInitOptions: { shimMode: false }` must
-   * match. See #70 for when native mode is needed (e.g. DevExtreme).
+   * Shared singletons to register. Merged over {@link DEFAULT_ANGULAR_SHARED}
+   * (pass `{}` and spread a filtered default to opt out of a framework dep).
    */
-  shimMode?: boolean;
+  shared?: SharedConfig;
 }
 
-let resolveFirstInit!: (
-  value: NativeFederationResult | PromiseLike<NativeFederationResult>
-) => void;
-let rejectFirstInit!: (reason?: unknown) => void;
-let firstInitCaptured = false;
-let federationPromise: Promise<NativeFederationResult> = new Promise(
-  (resolve, reject) => {
-    resolveFirstInit = resolve;
-    rejectFirstInit = reject;
-  }
-);
+/**
+ * Handle returned by {@link initFederation}. Holds the live MF instance and the
+ * `loadRemoteModule` bound to it. (The NF-era module-scoped standalone
+ * `loadRemoteModule` export was dropped in M1.3 — destructure from here instead.)
+ */
+export interface FederationInstance {
+  /** Load an exposed module from a registered remote. */
+  loadRemoteModule<T = unknown>(
+    remoteName: string,
+    exposedModule: string
+  ): Promise<T>;
+  loadRemoteModule<T = unknown>(options: LoadRemoteModuleOptions<T>): Promise<T>;
+  /** The underlying `@module-federation/runtime` instance, for advanced use. */
+  readonly instance: ModuleFederation;
+}
 
-export function initFederation(
-  remotesOrManifestUrl?: Record<string, string> | string,
-  options?: InitFederationOptions
-) {
-  const importMapProvider =
-    options?.shimMode === false
-      ? useDefaultImportMap()
-      : useShimImportMap({ shimMode: true });
-  const p = internalInitFederation(remotesOrManifestUrl ?? {}, {
-    ...importMapProvider,
-    logger: consoleLogger,
-    storage: globalThisStorageEntry,
-    hostRemoteEntry: { url: './remoteEntry.json', cacheTag: options?.cacheTag },
-    logLevel: options?.logging ?? 'debug',
-    sse: options?.sse,
-  });
-  if (!firstInitCaptured) {
-    firstInitCaptured = true;
-    p.then(resolveFirstInit, rejectFirstInit);
-  }
-  federationPromise = p;
-  return p;
+/** name → remoteEntry/manifest URL (the MF-native `entry` of each remote). */
+type RemotesMap = Record<string, string>;
+
+function toRemotes(remotes: RemotesMap) {
+  return Object.entries(remotes).map(([name, entry]) => ({ name, entry }));
+}
+
+/** Strip a leading `./` so `'./Component'` → `'Component'` for the MF id. */
+function exposedKey(exposedModule: string): string {
+  return exposedModule.replace(/^\.\//, '');
 }
 
 function normalizeOptions<T>(
@@ -107,91 +124,54 @@ function logClientError(error: string): void {
   }
 }
 
+/**
+ * Derive a remote's name from its `mf-manifest.json` URL (the lazy path's entry
+ * must be the JSON manifest — its top-level `name`, per M0.4 — not `remoteEntry.js`).
+ */
 async function resolveRemoteNameFromEntry(remoteEntry: string): Promise<string> {
   const res = await fetch(remoteEntry);
   if (!res.ok) {
     throw new Error(
-      `Failed to fetch remoteEntry at ${remoteEntry}: ${res.status} ${res.statusText}`
+      `Failed to fetch remote manifest at ${remoteEntry}: ${res.status} ${res.statusText}`
     );
   }
   const info = (await res.json()) as { name?: string };
   if (!info.name) {
-    throw new Error(`remoteEntry at ${remoteEntry} does not declare a 'name'`);
+    throw new Error(`manifest at ${remoteEntry} does not declare a 'name'`);
   }
   return info.name;
 }
 
-/**
- * Dynamically loads a remote module. Spec-compatible with the classic
- * `loadRemoteModule`; bridges to the orchestrator
- * (`@softarc/native-federation-orchestrator`) under the hood.
- *
- * ```ts
- * await loadRemoteModule({ remoteName: 'mfe1', exposedModule: './Component' });
- * await loadRemoteModule('mfe1', './Component');
- * ```
- *
- * Flow: normalize args → await `federationPromise` (may be called before
- * `initFederation`, then waits) → if only `remoteEntry` was given, fetch its
- * manifest for the name → if `remoteEntry` set, `initRemoteEntry(...)` first →
- * delegate to the orchestrator's `loadRemoteModule(remoteName, exposedModule)`.
- * On error, return truthy `fallback` (logging `console.error` in browsers) or
- * rethrow.
- *
- * @throws on bad arg combos, unresolvable `remoteName`, or load failure when
- *   no truthy `fallback` is set.
- *
- * @deprecated Prefer the `loadRemoteModule` returned by the `initFederation`
- *   promise. This top-level helper relies on a module-scoped federation
- *   instance and only resolves against the most recent `initFederation` call,
- *   which is brittle in tests and multi-host setups. Example:
- *   ```ts
- *   const { loadRemoteModule } = await initFederation(...);
- *   await loadRemoteModule('mfe1', './Component');
- *   ```
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadRemoteModule<T = any>(
-  options: LoadRemoteModuleOptions<T>
-): Promise<T>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadRemoteModule<T = any>(
-  remoteName: string,
-  exposedModule: string
-): Promise<T>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function loadRemoteModule<T = any>(
+async function loadFromInstance<T>(
+  mf: ModuleFederation,
   optionsOrRemoteName: LoadRemoteModuleOptions<T> | string,
   exposedModule?: string
 ): Promise<T> {
   const options = normalizeOptions<T>(optionsOrRemoteName, exposedModule);
   const { fallback } = options;
-
   try {
-    let federation = await federationPromise;
-
+    // Lazy path: a remote not declared at initFederation time. Resolve its name
+    // from the manifest if omitted, then register it before loading.
     if (!options.remoteName && options.remoteEntry) {
       options.remoteName = await resolveRemoteNameFromEntry(options.remoteEntry);
     }
-
-    if (options.remoteEntry) {
-      federation = await federation.initRemoteEntry(
-        options.remoteEntry,
-        options.remoteName
+    if (options.remoteEntry && options.remoteName) {
+      mf.registerRemotes(
+        [{ name: options.remoteName, entry: options.remoteEntry }],
+        { force: true }
       );
     }
-
     if (!options.remoteName) {
-      const err = 'unexpected arguments: Please pass remoteName or remoteEntry';
-      if (!fallback) throw new Error(err);
-      logClientError(err);
-      return fallback;
+      throw new Error(
+        'loadRemoteModule: pass remoteName, or a remoteEntry pointing at an mf-manifest.json that declares a name'
+      );
     }
-
-    return await federation.loadRemoteModule<T>(
-      options.remoteName,
-      options.exposedModule
-    );
+    const id = `${options.remoteName}/${exposedKey(options.exposedModule)}`;
+    const module = await mf.loadRemote<T>(id);
+    if (module === null) {
+      throw new Error(`loadRemote returned null for '${id}'`);
+    }
+    return module;
   } catch (err) {
     if (fallback) {
       logClientError(
@@ -204,4 +184,48 @@ export async function loadRemoteModule<T = any>(
   }
 }
 
-export { type NativeFederationResult } from '@softarc/native-federation-orchestrator';
+/**
+ * Initialise Module Federation for an Angular host.
+ *
+ * Unlike NF's promise-returning init, this is **synchronous** — MF's
+ * `createInstance` is sync and remotes load lazily on first `loadRemoteModule`.
+ *
+ * ```ts
+ * const { loadRemoteModule } = initFederation({ mfe1: 'http://localhost:4201/remoteEntry.js' });
+ * const m = await loadRemoteModule('mfe1', './Component');
+ * ```
+ *
+ * @param remotes - name → remoteEntry/manifest URL map. (A bare manifest-URL
+ *   string, like NF's `remotesOrManifestUrl`, is deferred to M1.7.)
+ * @param options - {@link InitFederationOptions}.
+ */
+export function initFederation(
+  remotes: RemotesMap = {},
+  options?: InitFederationOptions
+): FederationInstance {
+  if (typeof remotes === 'string') {
+    throw new Error(
+      'initFederation: passing a manifest URL string is not supported yet (M1.7); pass a { name: entryUrl } map'
+    );
+  }
+
+  const mf = createInstance({
+    name: options?.name ?? 'host',
+    remotes: toRemotes(remotes),
+    // Host `@angular/*` (+ rxjs/zone.js) singletons (M1.4); caller overrides win.
+    shared: { ...DEFAULT_ANGULAR_SHARED, ...options?.shared },
+    plugins: options?.runtimePlugins ?? [],
+    shareStrategy: 'loaded-first',
+  });
+
+  const instance: FederationInstance = {
+    instance: mf,
+    loadRemoteModule<T = unknown>(
+      optionsOrRemoteName: LoadRemoteModuleOptions<T> | string,
+      exposedModule?: string
+    ): Promise<T> {
+      return loadFromInstance<T>(mf, optionsOrRemoteName, exposedModule);
+    },
+  };
+  return instance;
+}

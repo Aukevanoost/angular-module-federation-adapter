@@ -110,7 +110,10 @@ describe('translateFederationArtifacts', () => {
     expect(cmd).toContain('-l en-US');
   });
 
-  it('creates a dist folder and copies the remoteEntry for each target locale', async () => {
+  it('creates a dist folder and copies the MF artifacts for each target locale', async () => {
+    // Both federation artifacts exist at the source locale.
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+
     await translateFederationArtifacts(i18n, true, '/dist', federationResult);
 
     const mkdirPaths = vi.mocked(fs.mkdirSync).mock.calls.map(c => String(c[0]));
@@ -118,10 +121,19 @@ describe('translateFederationArtifacts', () => {
     expect(mkdirPaths.some(p => p.endsWith('browser/fr'))).toBe(true);
     expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith(expect.any(String), { recursive: true });
 
-    expect(fs.copyFileSync).toHaveBeenCalledTimes(2);
+    // remoteEntry.js + mf-manifest.json, each into de + fr = 4 copies (M4.2).
+    expect(fs.copyFileSync).toHaveBeenCalledTimes(4);
     const copyTargets = vi.mocked(fs.copyFileSync).mock.calls.map(c => String(c[1]));
-    expect(copyTargets.some(p => p.endsWith('browser/de/remoteEntry.json'))).toBe(true);
-    expect(copyTargets.some(p => p.endsWith('browser/fr/remoteEntry.json'))).toBe(true);
+    expect(copyTargets.some(p => p.endsWith('browser/de/remoteEntry.js'))).toBe(true);
+    expect(copyTargets.some(p => p.endsWith('browser/fr/remoteEntry.js'))).toBe(true);
+    expect(copyTargets.some(p => p.endsWith('browser/de/mf-manifest.json'))).toBe(true);
+    expect(copyTargets.some(p => p.endsWith('browser/fr/mf-manifest.json'))).toBe(true);
+  });
+
+  it('skips federation artifacts that do not exist at the source locale', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    await translateFederationArtifacts(i18n, true, '/dist', federationResult);
+    expect(fs.copyFileSync).not.toHaveBeenCalled();
   });
 
   it('logs an error when the translate command fails', async () => {

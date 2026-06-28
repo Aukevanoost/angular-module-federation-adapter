@@ -24,13 +24,10 @@ import {
 
 import { type JsonObject } from "@angular-devkit/core";
 import {
-  buildForFederation,
   createFederationCache,
   type FederationInfo,
   getExternals,
   normalizeFederationOptions,
-  rebuildForFederation,
-  setBuildAdapter,
 } from "@softarc/native-federation";
 import {
   AbortedError,
@@ -47,7 +44,10 @@ import { devHostInstancesPlugin } from "../../plugin/dev-host-instances-plugin.j
 import { checkForInvalidImports } from "./../../utils/check-for-invalid-imports.js";
 import { federationBuildNotifier } from "./federation-build-notifier.js";
 import type { NfBuilderSchema, NfInternalOptions } from "./schema.js";
-import { createAngularBuildAdapter } from "../../tools/esbuild/angular-esbuild-adapter.js";
+import {
+  createMfFederationBuilder,
+  type MfFederationInfo,
+} from "../../tools/mf/build-for-federation.js";
 import { getI18nConfig, translateFederationArtifacts } from "./i18n.js";
 import { updateScriptTags } from "./update-index-html.js";
 
@@ -206,17 +206,6 @@ export async function* runBuilder(
       ? nfBuilderOptions.tsConfig
       : ngBuilderOptions.tsConfig;
 
-  const adapter = createAngularBuildAdapter(
-    {
-      ...ngBuilderOptions,
-      plugins: nfBuilderOptions.plugins,
-      instrumentForCoverage: nfBuilderOptions.instrumentForCoverage,
-    },
-    context,
-  );
-
-  setBuildAdapter(adapter);
-
   setLogLevel(ngBuilderOptions.verbose ? "verbose" : "info");
 
   if (!ngBuilderOptions.outputPath) {
@@ -295,6 +284,22 @@ export async function* runBuilder(
   logger.measure(start, "To load the federation config.");
 
   const externals = getExternals(normalized.config);
+
+  // MF side builder (M2.1) — replaces NF's adapter + buildForFederation/rebuildForFederation.
+  const mfBuilder = await createMfFederationBuilder(
+    normalized.config,
+    normalized.options,
+    externals,
+    {
+      builderOptions: {
+        ...ngBuilderOptions,
+        plugins: nfBuilderOptions.plugins,
+        instrumentForCoverage: nfBuilderOptions.instrumentForCoverage,
+      },
+      context,
+    },
+  );
+
   const plugins = [
     {
       name: "externals",
@@ -420,13 +425,9 @@ export async function* runBuilder(
     fs.mkdirSync(normalized.options.outputPath, { recursive: true });
   }
 
-  let federationResult: FederationInfo;
+  let federationResult: MfFederationInfo;
   try {
-    federationResult = await buildForFederation(
-      normalized.config,
-      normalized.options,
-      externals,
-    );
+    federationResult = await mfBuilder.build();
   } catch (e) {
     logger.error((e as Error)?.message ?? "Building the artifacts failed");
     process.exit(1);
@@ -435,7 +436,7 @@ export async function* runBuilder(
   // Dispose the finished federation context so its compiler-plugin onDispose resets
   // Angular's shared TS compilation state before the app build (#47); watch reuses it.
   if (!watch) {
-    await adapter.dispose("mapping-or-exposed").catch(() => undefined);
+    await mfBuilder.dispose().catch(() => undefined);
   }
 
   if (nfWatcher) {
@@ -453,7 +454,7 @@ export async function* runBuilder(
       i18n,
       localeFilter,
       outputOptions.base,
-      federationResult,
+      toFederationInfoForI18n(federationResult),
     );
     logger.measure(start, "To translate the artifacts.");
   }
@@ -548,13 +549,7 @@ export async function* runBuilder(
 
               if (nfWatcher) nfWatcher.clear();
 
-              federationResult = await rebuildForFederation(
-                normalized.config,
-                normalized.options,
-                externals,
-                changedFiles,
-                signal,
-              );
+              federationResult = await mfBuilder.rebuild(changedFiles);
 
               if (nfWatcher) {
                 syncNfFileWatcher(
@@ -572,7 +567,7 @@ export async function* runBuilder(
                   i18n,
                   localeFilter,
                   outputOptions.base,
-                  federationResult,
+                  toFederationInfoForI18n(federationResult),
                 );
               }
 
@@ -626,7 +621,7 @@ export async function* runBuilder(
     }
   } finally {
     rebuildQueue.dispose();
-    await adapter.dispose();
+    await mfBuilder.dispose();
     await nfWatcher?.close();
 
     if (isLocalDevelopment) {
@@ -635,6 +630,21 @@ export async function* runBuilder(
   }
 
   yield ngBuildStatus;
+}
+
+/**
+ * Transitional bridge (M2.1): feed MF artifact files to NF's i18n translator,
+ * which reads `exposes[].outFileName`. The full MF i18n rework (per-locale
+ * `mf-manifest.json` + `remoteEntry.js`) is **M4.2**; until then this maps MF's
+ * written chunk basenames onto the minimal `FederationInfo` shape the translator
+ * consumes.
+ */
+function toFederationInfoForI18n(mf: MfFederationInfo): FederationInfo {
+  return {
+    name: mf.name,
+    shared: [],
+    exposes: mf.writtenFiles.map((f) => ({ outFileName: path.basename(f) })),
+  } as unknown as FederationInfo;
 }
 
 function removeBaseHref(req: { url?: string }, baseHref?: string) {
