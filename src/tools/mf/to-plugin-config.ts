@@ -32,10 +32,19 @@ export interface FederationSharedInput {
   includeSecondaries?: boolean | { skip?: string | string[] };
 }
 
-function mapShared(shared: FederationConfigInput['shared']): MfShared {
+function mapShared(name: string, shared: FederationConfigInput['shared']): MfShared {
   const out: MfShared = {};
   for (const [pkg, cfg] of Object.entries(shared ?? {})) {
     out[pkg] = {
+      // `@module-federation/esbuild@0.0.109`'s manifest writer shadows the
+      // federation config with the per-package config when building each shared
+      // id (`${config.name}:${pkg}` in manifest.mjs), so `config.name` reads
+      // *this* object and otherwise yields `undefined:<pkg>`. Carry the
+      // federation name here so the id resolves to `<name>:<pkg>` at the source
+      // — no post-build manifest rewrite needed. NormalizedSharedConfig has no
+      // `name` field (cast below), and every other consumer reads specific keys,
+      // so the extra property is inert. Stays correct if upstream fixes the shadow.
+      name,
       singleton: cfg.singleton ?? false,
       strictVersion: cfg.strictVersion ?? false,
       // The plugin's NormalizedSharedConfig requires a string here (no `false`,
@@ -46,7 +55,7 @@ function mapShared(shared: FederationConfigInput['shared']): MfShared {
       // Plugin types narrow to `boolean`, but `getSecondaries` accepts the
       // `{ skip }` object form too — pass through as-is.
       includeSecondaries: cfg.includeSecondaries as boolean | undefined,
-    };
+    } as MfShared[string];
   }
   return out;
 }
@@ -65,7 +74,7 @@ export function toMfPluginConfig(
     name: cfg.name,
     filename: cfg.filename ?? filename,
     exposes: cfg.exposes ?? {},
-    shared: mapShared(cfg.shared),
+    shared: mapShared(cfg.name, cfg.shared),
     remotes: cfg.remotes,
   };
 }

@@ -35,6 +35,16 @@ describe('toMfPluginConfig', () => {
     });
   });
 
+  it('stamps the federation name onto each shared entry so the manifest id is `<name>:<pkg>`', () => {
+    // The upstream manifest writer shadows the federation config with the
+    // per-package config, reading `config.name` off the shared entry. Carrying
+    // the name here makes its `${config.name}:${pkg}` id resolve correctly
+    // instead of `undefined:<pkg>` (replaces the old post-build manifest rewrite).
+    const out = toMfPluginConfig({ name: 'mfe1', shared: { rxjs: {}, '@angular/core': {} } });
+    expect((out.shared!['rxjs'] as { name?: string }).name).toBe('mfe1');
+    expect((out.shared!['@angular/core'] as { name?: string }).name).toBe('mfe1');
+  });
+
   it('carries includeSecondaries through (finding #4 — plugin supports it)', () => {
     const out = toMfPluginConfig({
       name: 'm',
